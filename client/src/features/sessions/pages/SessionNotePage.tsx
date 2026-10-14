@@ -178,7 +178,7 @@ export function SessionNotePage() {
                     </p>
                     {pct !== null && <Badge variant="outline">{pct}% accuracy</Badge>}
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-[6rem_6rem_10rem_1fr]">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-[6rem_6rem_10rem_1fr]">
                     <div className="space-y-1">
                       <Label htmlFor={`t-${g.id}`} className="text-xs">Trials</Label>
                       <Input id={`t-${g.id}`} type="number" min={0} value={r.trials ?? ''} readOnly={readOnly}
@@ -189,7 +189,7 @@ export function SessionNotePage() {
                       <Input id={`s-${g.id}`} type="number" min={0} value={r.successes ?? ''} readOnly={readOnly}
                         onChange={(e) => setGoal(g.id, { successes: e.target.value === '' ? null : Number(e.target.value) })} />
                     </div>
-                    <div className="space-y-1">
+                    <div className="col-span-2 space-y-1 sm:col-span-1">
                       <Label htmlFor={`p-${g.id}`} className="text-xs">Prompt level</Label>
                       <NativeSelect id={`p-${g.id}`} value={r.prompt_level ?? ''} disabled={readOnly}
                         onChange={(e) => setGoal(g.id, { prompt_level: e.target.value || null })}>
@@ -197,7 +197,7 @@ export function SessionNotePage() {
                         {PROMPT_LEVELS.map((p) => <option key={p} value={p}>{p}</option>)}
                       </NativeSelect>
                     </div>
-                    <div className="space-y-1">
+                    <div className="col-span-2 space-y-1 sm:col-span-1">
                       <Label htmlFor={`c-${g.id}`} className="text-xs">Comment</Label>
                       <Input id={`c-${g.id}`} value={r.comment ?? ''} readOnly={readOnly}
                         onChange={(e) => setGoal(g.id, { comment: e.target.value })} />
@@ -221,7 +221,7 @@ export function SessionNotePage() {
       </Card>
 
       {!readOnly && (
-        <div className="sticky bottom-0 -mx-4 flex flex-wrap justify-end gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur">
+        <div className="sticky bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-10 -mx-4 flex rounded-t-xl lg:bottom-0 lg:rounded-none flex-wrap justify-end gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur">
           <Button variant="outline" onClick={() => submit(false)} disabled={save.isPending}>
             <Save /> Save draft
           </Button>

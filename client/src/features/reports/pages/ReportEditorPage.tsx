@@ -223,7 +223,7 @@ export function ReportEditorPage() {
       )}
 
       {!readOnly && template && (
-        <div className="sticky bottom-0 -mx-4 flex justify-end gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur print:hidden">
+        <div className="sticky bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-10 -mx-4 flex rounded-t-xl lg:bottom-0 lg:rounded-none justify-end gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur print:hidden">
           <Button variant="outline" onClick={() => submit(false)} disabled={save.isPending}>
             <Save /> Save draft
           </Button>

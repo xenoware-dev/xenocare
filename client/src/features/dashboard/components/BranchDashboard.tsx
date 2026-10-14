@@ -83,7 +83,7 @@ export function BranchDashboard() {
         {agenda.isLoading ? (
           <StatSkeleton />
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <StatCard label="Sessions today" value={String(sessions.length)} icon={CalendarCheck} hint={`${done} done · ${sessions.length - done - missed} to go`} to="/appointments" />
             <StatCard label="Checked in" value={`${checkedIn}/${sessions.length}`} icon={UserCheck} tone="success" to="/attendance" />
             <StatCard label="Absent / no-show" value={String(missed)} icon={UserX} tone={missed ? 'danger' : 'neutral'} hint={missed ? 'Follow up with parents' : 'Everyone came'} to="/attendance" />

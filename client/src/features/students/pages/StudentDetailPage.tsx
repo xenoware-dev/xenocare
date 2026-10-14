@@ -91,7 +91,7 @@ export function StudentDetailPage() {
       </div>
 
       <Tabs defaultValue="overview">
-        <TabsList className="flex-wrap">
+        <TabsList className="w-full justify-start overflow-x-auto sm:w-auto">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="plan">Plan & goals</TabsTrigger>
           <TabsTrigger value="sessions">Sessions</TabsTrigger>

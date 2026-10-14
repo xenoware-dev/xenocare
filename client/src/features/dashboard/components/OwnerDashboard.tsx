@@ -56,7 +56,7 @@ export function OwnerDashboard() {
         {isLoading ? (
           <StatSkeleton />
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <StatCard label="Branches" value={String(rows.length)} icon={Building2} to="/branches" />
             <StatCard label="Active patients" value={String(totals.patients)} icon={Users} tone="info" />
             <StatCard label="Staff" value={String(totals.admins + totals.therapists)} icon={UserCog} tone="neutral" hint={`${totals.admins} admins · ${totals.therapists} therapists`} to="/staff" />

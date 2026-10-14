@@ -1,4 +1,7 @@
 import { CalendarDays, CalendarX2, ChevronLeft, ChevronRight, Plus, Repeat } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { ListSkeleton } from '@/components/common/Skeletons';
+import { EmptyState } from '@/components/common/EmptyState';
 import { useOpenFromQuery } from '@/hooks/useOpenFromQuery';
 import { EmptyTableRow, TableSkeleton } from '@/components/common/Skeletons';
 import { StatusBadge } from '@/components/common/StatusBadge';
@@ -96,66 +99,112 @@ export function AppointmentsPage() {
           </div>
 
           {error && <p className="text-sm text-destructive">{error.message}</p>}
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Time</TableHead>
-                <TableHead>Patient</TableHead>
-                {!isTherapist && <TableHead>Therapist</TableHead>}
-                <TableHead>Therapy</TableHead>
-                {isAll && <TableHead>Branch</TableHead>}
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading && <TableSkeleton cols={7} />}
-              {data?.length === 0 && (
-                <EmptyTableRow
-                  cols={7}
-                  icon={CalendarX2}
-                  title="No appointments on this day"
-                  description={canManage ? 'Book a session for a patient and therapist.' : undefined}
-                  action={canManage && branch ? <Button size="sm" onClick={() => setBooking(true)}><Plus /> New appointment</Button> : undefined}
-                />
-              )}
-              {data?.map((a) => (
-                <TableRow key={a.id} className={a.status === 'cancelled' ? 'opacity-60' : undefined}>
-                  <TableCell className="whitespace-nowrap">
+          {/* Phones: cards */}
+          <div className="space-y-2 md:hidden">
+            {isLoading && <ListSkeleton rows={3} />}
+            {data?.length === 0 && (
+              <EmptyState
+                icon={CalendarX2}
+                title="No appointments on this day"
+                action={canManage && branch ? <Button size="sm" onClick={() => setBooking(true)}><Plus /> New appointment</Button> : undefined}
+              />
+            )}
+            {data?.map((a) => (
+              <article key={a.id} className={cn('rounded-xl border bg-card p-3.5', a.status === 'cancelled' && 'opacity-60')}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold tabular-nums">
                     {timeIn(a.start_at, timeZone)} – {timeIn(a.end_at, timeZone)}
                     {a.recurrence_group_id && <Repeat className="ml-1 inline size-3 text-muted-foreground" aria-label="Recurring" />}
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium">{a.students?.first_name} {a.students?.last_name}</div>
-                    <div className="font-mono text-xs text-muted-foreground">{a.students?.student_code}</div>
-                  </TableCell>
-                  {!isTherapist && <TableCell>{a.therapist?.full_name}</TableCell>}
-                  <TableCell>{THERAPY_LABELS[a.therapy_type]}</TableCell>
-                  {isAll && <TableCell>{a.branches?.name}</TableCell>}
-                  <TableCell>
-                    <StatusBadge status={a.status} />
-                  </TableCell>
-                  <TableCell className="space-x-1 text-right whitespace-nowrap">
-                    {open(a) && (canManage || isTherapist) && (
-                      <>
-                        <Button variant="ghost" size="sm" onClick={() => update(a, 'completed')} disabled={setStatus.isPending}>
-                          Completed
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => update(a, 'no_show')} disabled={setStatus.isPending}>
-                          No-show
-                        </Button>
-                      </>
-                    )}
-                    {open(a) && canManage && (
+                  </span>
+                  <StatusBadge status={a.status} />
+                </div>
+                <p className="mt-1.5 font-medium">{a.students?.first_name} {a.students?.last_name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {THERAPY_LABELS[a.therapy_type]}
+                  {!isTherapist && a.therapist && ` · ${a.therapist.full_name}`}
+                  {isAll && a.branches && ` · ${a.branches.name}`}
+                </p>
+                {open(a) && (canManage || isTherapist) && (
+                  <div className="mt-3 flex gap-2">
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => update(a, 'completed')} disabled={setStatus.isPending}>
+                      Completed
+                    </Button>
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => update(a, 'no_show')} disabled={setStatus.isPending}>
+                      No-show
+                    </Button>
+                    {canManage && (
                       <Button variant="ghost" size="sm" className="text-destructive" onClick={() => update(a, 'cancelled')} disabled={setStatus.isPending}>
                         Cancel
                       </Button>
                     )}
-                  </TableCell>
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Time</TableHead>
+                  <TableHead>Patient</TableHead>
+                  {!isTherapist && <TableHead>Therapist</TableHead>}
+                  <TableHead>Therapy</TableHead>
+                  {isAll && <TableHead>Branch</TableHead>}
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {isLoading && <TableSkeleton cols={7} />}
+                {data?.length === 0 && (
+                  <EmptyTableRow
+                    cols={7}
+                    icon={CalendarX2}
+                    title="No appointments on this day"
+                    description={canManage ? 'Book a session for a patient and therapist.' : undefined}
+                    action={canManage && branch ? <Button size="sm" onClick={() => setBooking(true)}><Plus /> New appointment</Button> : undefined}
+                  />
+                )}
+                {data?.map((a) => (
+                  <TableRow key={a.id} className={a.status === 'cancelled' ? 'opacity-60' : undefined}>
+                    <TableCell className="whitespace-nowrap">
+                      {timeIn(a.start_at, timeZone)} – {timeIn(a.end_at, timeZone)}
+                      {a.recurrence_group_id && <Repeat className="ml-1 inline size-3 text-muted-foreground" aria-label="Recurring" />}
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium">{a.students?.first_name} {a.students?.last_name}</div>
+                      <div className="font-mono text-xs text-muted-foreground">{a.students?.student_code}</div>
+                    </TableCell>
+                    {!isTherapist && <TableCell>{a.therapist?.full_name}</TableCell>}
+                    <TableCell>{THERAPY_LABELS[a.therapy_type]}</TableCell>
+                    {isAll && <TableCell>{a.branches?.name}</TableCell>}
+                    <TableCell>
+                      <StatusBadge status={a.status} />
+                    </TableCell>
+                    <TableCell className="space-x-1 text-right whitespace-nowrap">
+                      {open(a) && (canManage || isTherapist) && (
+                        <>
+                          <Button variant="ghost" size="sm" onClick={() => update(a, 'completed')} disabled={setStatus.isPending}>
+                            Completed
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => update(a, 'no_show')} disabled={setStatus.isPending}>
+                            No-show
+                          </Button>
+                        </>
+                      )}
+                      {open(a) && canManage && (
+                        <Button variant="ghost" size="sm" className="text-destructive" onClick={() => update(a, 'cancelled')} disabled={setStatus.isPending}>
+                          Cancel
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
       {branch && <NewAppointmentDialog branch={branch} date={date} open={booking} onOpenChange={setBooking} />}

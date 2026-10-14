@@ -21,11 +21,11 @@ export function ScheduleBoard({ items, timeZone }: { items: AgendaItem[]; timeZo
   const now = Date.now();
 
   return (
-    <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
+    <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2">
       {[...columns.values()].map((col) => {
         const done = col.items.filter((a) => a.status === 'completed').length;
         return (
-          <section key={col.name} className="w-64 shrink-0 rounded-xl border bg-muted/40 p-2.5">
+          <section key={col.name} className="w-[78vw] max-w-64 shrink-0 snap-start rounded-xl border bg-muted/40 p-2.5 sm:w-64">
             <header className="mb-2 flex items-center justify-between px-1">
               <h3 className="truncate text-sm font-semibold">{col.name}</h3>
               <span className="text-xs text-muted-foreground tabular-nums">{done}/{col.items.length} done</span>

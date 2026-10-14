@@ -1,4 +1,7 @@
 import { Plus, Users } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { ListSkeleton } from '@/components/common/Skeletons';
+import { EmptyState } from '@/components/common/EmptyState';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { useOpenFromQuery } from '@/hooks/useOpenFromQuery';
 import { EmptyTableRow, TableSkeleton } from '@/components/common/Skeletons';
@@ -79,70 +82,108 @@ export function StaffPage() {
       <Card>
         <CardContent>
           {error && <p className="mb-4 text-sm text-destructive">{error.message}</p>}
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Branches</TableHead>
-                <TableHead>Therapy</TableHead>
-                <TableHead>Status</TableHead>
-                {canManage && <TableHead className="text-right">Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading && <TableSkeleton cols={6} />}
-              {data && rows.length === 0 && (
-                <EmptyTableRow
-                  cols={6}
-                  icon={Users}
-                  title="No staff in this branch yet"
-                  action={canManage ? <Button size="sm" onClick={() => setAdding(true)}><Plus /> {addLabel}</Button> : undefined}
-                />
-              )}
-              {rows.map((s) => (
-                <TableRow key={s.id} className={s.is_active ? undefined : 'opacity-60'}>
-                  <TableCell>
-                    <div className="flex items-center gap-2.5">
-                      <UserAvatar name={s.full_name || s.email} path={s.avatar_url} className="size-8" />
-                      <div>
-                        <div className="font-medium">{s.full_name || '—'}</div>
-                        <div className="text-xs text-muted-foreground">{s.email}</div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={ROLE_VARIANT[s.role]}>{ROLE_LABEL[s.role]}</Badge>
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {s.role === 'owner'
-                      ? 'All branches'
-                      : s.staff_branches.map((b) => b.branches?.name).filter(Boolean).join(', ') || '—'}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {s.staff_details?.therapy_types.map((t) => THERAPY_LABELS[t]).join(', ') || '—'}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={s.is_active ? 'active' : 'inactive'} />
-                  </TableCell>
-                  {canManage && (
-                    <TableCell className="text-right">
-                      {canEdit(s) && (
-                        <Button variant="ghost" size="sm" onClick={() => setSettingsFor(s)}>
-                          Edit
-                        </Button>
-                      )}
-                      {canToggle(s) && (
-                        <Button variant="ghost" size="sm" onClick={() => toggle(s)} disabled={setActive.isPending}>
-                          {s.is_active ? 'Deactivate' : 'Reactivate'}
-                        </Button>
-                      )}
-                    </TableCell>
-                  )}
+          {/* Phones: cards */}
+          <div className="space-y-2 md:hidden">
+            {isLoading && <ListSkeleton rows={3} />}
+            {data && rows.length === 0 && <EmptyState icon={Users} title="No staff in this branch yet" />}
+            {rows.map((s) => (
+              <article key={s.id} className={cn('rounded-xl border bg-card p-3.5', !s.is_active && 'opacity-60')}>
+                <div className="flex items-center gap-3">
+                  <UserAvatar name={s.full_name || s.email} path={s.avatar_url} className="size-10" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{s.full_name || '—'}</p>
+                    <p className="truncate text-xs text-muted-foreground">{s.email}</p>
+                  </div>
+                  <StatusBadge status={s.is_active ? 'active' : 'inactive'} />
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">{ROLE_LABEL[s.role]}</span>
+                  {' · '}
+                  {s.role === 'owner' ? 'All branches' : s.staff_branches.map((b) => b.branches?.name).filter(Boolean).join(', ') || '—'}
+                  {s.staff_details?.therapy_types.length ? ` · ${s.staff_details.therapy_types.map((t) => THERAPY_LABELS[t]).join(', ')}` : ''}
+                </p>
+                {(canEdit(s) || canToggle(s)) && (
+                  <div className="mt-3 flex gap-2">
+                    {canEdit(s) && (
+                      <Button variant="outline" size="sm" className="flex-1" onClick={() => setSettingsFor(s)}>Edit</Button>
+                    )}
+                    {canToggle(s) && (
+                      <Button variant="ghost" size="sm" className="flex-1" onClick={() => toggle(s)} disabled={setActive.isPending}>
+                        {s.is_active ? 'Deactivate' : 'Reactivate'}
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Branches</TableHead>
+                  <TableHead>Therapy</TableHead>
+                  <TableHead>Status</TableHead>
+                  {canManage && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {isLoading && <TableSkeleton cols={6} />}
+                {data && rows.length === 0 && (
+                  <EmptyTableRow
+                    cols={6}
+                    icon={Users}
+                    title="No staff in this branch yet"
+                    action={canManage ? <Button size="sm" onClick={() => setAdding(true)}><Plus /> {addLabel}</Button> : undefined}
+                  />
+                )}
+                {rows.map((s) => (
+                  <TableRow key={s.id} className={s.is_active ? undefined : 'opacity-60'}>
+                    <TableCell>
+                      <div className="flex items-center gap-2.5">
+                        <UserAvatar name={s.full_name || s.email} path={s.avatar_url} className="size-8" />
+                        <div>
+                          <div className="font-medium">{s.full_name || '—'}</div>
+                          <div className="text-xs text-muted-foreground">{s.email}</div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={ROLE_VARIANT[s.role]}>{ROLE_LABEL[s.role]}</Badge>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {s.role === 'owner'
+                        ? 'All branches'
+                        : s.staff_branches.map((b) => b.branches?.name).filter(Boolean).join(', ') || '—'}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {s.staff_details?.therapy_types.map((t) => THERAPY_LABELS[t]).join(', ') || '—'}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={s.is_active ? 'active' : 'inactive'} />
+                    </TableCell>
+                    {canManage && (
+                      <TableCell className="text-right">
+                        {canEdit(s) && (
+                          <Button variant="ghost" size="sm" onClick={() => setSettingsFor(s)}>
+                            Edit
+                          </Button>
+                        )}
+                        {canToggle(s) && (
+                          <Button variant="ghost" size="sm" onClick={() => toggle(s)} disabled={setActive.isPending}>
+                            {s.is_active ? 'Deactivate' : 'Reactivate'}
+                          </Button>
+                        )}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
       <AddStaffDialog open={adding} onOpenChange={setAdding} />

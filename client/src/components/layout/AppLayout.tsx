@@ -4,6 +4,7 @@ import { Outlet, useLocation } from 'react-router';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { Button } from '@/components/ui/button';
 import { BranchProvider } from '@/providers/BranchProvider';
+import { BottomNav } from './BottomNav';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 
@@ -39,13 +40,14 @@ export function AppLayout() {
 
         <div className="flex min-w-0 flex-col">
           <Topbar onMenu={() => setMobileOpen(true)} />
-          <main className="mx-auto w-full max-w-[1400px] flex-1 p-4 md:p-6 lg:p-8 print:max-w-none print:p-0">
+          <main className="mx-auto w-full max-w-[1400px] flex-1 p-4 pb-28 md:p-6 md:pb-28 lg:p-8 lg:pb-8 print:max-w-none print:p-0">
             <Suspense fallback={<LoadingScreen />}>
               <Outlet />
             </Suspense>
           </main>
         </div>
       </div>
+      <BottomNav onMore={() => setMobileOpen(true)} />
     </BranchProvider>
   );
 }

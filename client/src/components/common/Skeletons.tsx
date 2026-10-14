@@ -39,7 +39,7 @@ export function ListSkeleton({ rows = 3 }: { rows?: number }) {
 
 export function StatSkeleton({ count = 4 }: { count?: number }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
       {Array.from({ length: count }, (_, i) => (
         <Skeleton key={i} className="h-[104px] rounded-xl" />
       ))}

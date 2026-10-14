@@ -13,7 +13,7 @@ export function PageHeader({
   icon?: LucideIcon;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-3 sm:mb-6 sm:gap-4">
       <div className="flex items-start gap-3">
         {Icon && (
           <span className="mt-0.5 hidden size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-primary sm:flex">
@@ -21,7 +21,7 @@ export function PageHeader({
           </span>
         )}
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{title}</h1>
           {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
         </div>
       </div>

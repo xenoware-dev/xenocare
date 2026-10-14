@@ -73,9 +73,9 @@ export function AgendaList({
             {cancelled ? (
               <StatusBadge status="cancelled" />
             ) : (
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                 {canCheckIn && (
-                  <div className="flex rounded-md border p-0.5" role="group" aria-label="Attendance">
+                  <div className="flex w-full rounded-lg border p-0.5 sm:w-auto sm:rounded-md" role="group" aria-label="Attendance">
                     {ATTENDANCE.map(({ status, label }) => (
                       <button
                         key={status}
@@ -84,7 +84,7 @@ export function AgendaList({
                         disabled={mark.isPending || a.session?.is_locked}
                         aria-pressed={a.attendance?.status === status}
                         className={cn(
-                          'rounded px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50',
+                          'flex-1 rounded px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50 sm:flex-none sm:px-2.5 sm:py-1 sm:text-xs',
                           a.attendance?.status === status
                             ? status === 'absent'
                               ? 'bg-destructive text-white'
