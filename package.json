@@ -7,7 +7,7 @@
   ],
   "scripts": {
     "dev": "concurrently -n server,client -c blue,green \"npm:dev -w server\" \"npm:dev -w client\"",
-    "build": "npm run build -w server && npm run build -w client",
+    "build": "npm run build -w server",
     "typecheck": "npm run typecheck -w server && npm run typecheck -w client",
     "db:types": "supabase gen types typescript --local > client/src/types/database.types.ts && cp client/src/types/database.types.ts server/src/types/database.types.ts",
     "db:start": "supabase start",
@@ -23,6 +23,6 @@
     "supabase": "^2.120.0"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12"
   }
 }
