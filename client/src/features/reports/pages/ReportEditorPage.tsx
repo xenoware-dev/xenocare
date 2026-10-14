@@ -19,6 +19,8 @@ import { usePermission } from '@/hooks/usePermission';
 import { formatDate } from '@/lib/format';
 import { addDays, todayIn } from '@/lib/time';
 import { THERAPY_LABELS, type TherapyType } from '@/types/app';
+import { ageFrom, ClinicalDocument } from '@/components/common/ClinicalDocument';
+import { TemplateDocument } from '@/features/forms/TemplateDocument';
 import { buildReportDraft, useNotifyReportReady, useReport, useSaveReport } from '../api';
 
 /** /reports/new?student=… and /reports/:id. Final reports print as a clean A4 page (Save as PDF). */
@@ -125,6 +127,40 @@ export function ReportEditorPage() {
       toast.error(err instanceof Error ? err.message : 'Could not notify parents');
     }
   };
+
+  // Final reports read as a clinical report (what parents receive).
+  if (r && final && template) {
+    const age = ageFrom(r.students?.date_of_birth);
+    return (
+      <ClinicalDocument
+        title="Progress report"
+        branch={r.branches}
+        docNo={`${r.students?.student_code ?? ''}-R${r.id.slice(0, 6).toUpperCase()}`}
+        patient={[
+          { label: 'Patient', value: name },
+          { label: 'Patient ID', value: r.students?.student_code },
+          { label: 'Age', value: age !== null ? `${age} yrs` : null },
+        ]}
+        meta={[
+          { label: 'Period', value: `${formatDate(r.period_start)} – ${formatDate(r.period_end)}` },
+          { label: 'Therapy', value: THERAPY_LABELS[r.therapy_type] },
+          { label: 'Therapist', value: r.therapist?.full_name },
+          { label: 'Shared', value: r.shared_via_whatsapp_at ? `WhatsApp, ${formatDate(r.shared_via_whatsapp_at)}` : 'Not yet' },
+        ]}
+        signedBy={r.therapist?.full_name}
+        signedAt={r.finalized_at}
+        actions={
+          canNotify && (
+            <Button size="sm" onClick={sendToParents} disabled={notify.isPending}>
+              <MessageCircle /> Notify parents
+            </Button>
+          )
+        }
+      >
+        <TemplateDocument schema={template.schema} values={content} goals={goals.map((g) => ({ id: g.id, description: g.description }))} />
+      </ClinicalDocument>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 print:max-w-none print:space-y-4">

@@ -19,6 +19,9 @@ import { usePermission } from '@/hooks/usePermission';
 import { formatDate } from '@/lib/format';
 import { todayIn } from '@/lib/time';
 import { THERAPY_LABELS, type TherapyType } from '@/types/app';
+import { ageFrom, ClinicalDocument } from '@/components/common/ClinicalDocument';
+import { TemplateDocument } from '@/features/forms/TemplateDocument';
+import { useStudent } from '@/features/students/api';
 import { useAssessment, useSaveAssessment } from '../api';
 
 /** /assessments/new?student=… and /assessments/:id */
@@ -32,6 +35,7 @@ export function AssessmentEditorPage() {
   const { data: templates } = useTemplates('assessment');
   const { data: patients } = useVisiblePatients();
   const save = useSaveAssessment();
+  const { data: student } = useStudent(existing.data?.student_id);
   const confirm = useConfirm();
 
   const [studentId, setStudentId] = useState(params.get('student') ?? '');
@@ -94,6 +98,41 @@ export function AssessmentEditorPage() {
       toast.error(err instanceof Error ? err.message : 'Could not save assessment');
     }
   };
+
+  // Final assessments read as a clinical report.
+  if (a && final && template) {
+    const age = ageFrom(student?.date_of_birth);
+    return (
+      <ClinicalDocument
+        title={template.name}
+        branch={student?.branches ? { name: student.branches.name } : null}
+        docNo={`${a.students?.student_code ?? ''}-A${a.id.slice(0, 6).toUpperCase()}`}
+        patient={[
+          { label: 'Patient', value: patientName },
+          { label: 'Patient ID', value: a.students?.student_code },
+          { label: 'Age / Gender', value: [age !== null ? `${age} yrs` : null, student?.gender !== 'unspecified' ? student?.gender : null].filter(Boolean).join(' · ') },
+          { label: 'Diagnosis', value: student?.diagnosis.join(', ') },
+        ]}
+        meta={[
+          { label: 'Assessed on', value: formatDate(a.assessment_date) },
+          { label: 'Therapy', value: THERAPY_LABELS[a.therapy_type] },
+          { label: 'Therapist', value: a.therapist?.full_name },
+        ]}
+        signedBy={a.therapist?.full_name}
+        signedAt={a.finalized_at}
+      >
+        <TemplateDocument schema={template.schema} values={responses} />
+        <section className="break-inside-avoid">
+          <h3 className="mb-2 border-b pb-1 text-xs font-bold tracking-[0.12em] text-primary uppercase print:text-black">Summary</h3>
+          <p className="text-sm leading-relaxed whitespace-pre-line">{summary || '—'}</p>
+        </section>
+        <section className="break-inside-avoid">
+          <h3 className="mb-2 border-b pb-1 text-xs font-bold tracking-[0.12em] text-primary uppercase print:text-black">Recommendations</h3>
+          <p className="text-sm leading-relaxed whitespace-pre-line">{recommendations || '—'}</p>
+        </section>
+      </ClinicalDocument>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 print:max-w-none">

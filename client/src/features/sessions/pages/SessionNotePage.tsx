@@ -20,7 +20,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePermission } from '@/hooks/usePermission';
 import { timeIn } from '@/lib/time';
 import { THERAPY_LABELS } from '@/types/app';
-import { useNoteContext, useSaveNote, type GoalResult } from '../api';
+import { ageFrom, ClinicalDocument } from '@/components/common/ClinicalDocument';
+import { TemplateDocument } from '@/features/forms/TemplateDocument';
+import { useStudent } from '@/features/students/api';
+import { useNoteContext, useSaveNote, type GoalResult, type NoteContext } from '../api';
 
 const PROMPT_LEVELS = ['Independent', 'Verbal', 'Gestural', 'Model', 'Physical'];
 
@@ -35,6 +38,7 @@ export function SessionNotePage() {
   const template = savedTemplate ?? soapTemplates?.[0];
   const { goals, data: plans } = useActiveGoals(ctx?.appointment.student_id, ctx?.appointment.therapy_type);
   const save = useSaveNote();
+  const { data: student } = useStudent(ctx?.appointment.student_id);
   const confirm = useConfirm();
 
   const [notes, setNotes] = useState<FormValues>({});
@@ -111,6 +115,24 @@ export function SessionNotePage() {
       toast.error(err instanceof Error ? err.message : 'Could not save the note');
     }
   };
+
+  // Signed (or view-only) notes read as a clinical document, not a form.
+  if (session && (locked || !canWrite) && template) {
+    const goalNames = new Map((plans ?? []).flatMap((p) => p.therapy_goals.map((g) => [g.id, g.description] as const)));
+    return (
+      <SessionDocument
+        ctx={ctx}
+        schema={template.schema}
+        notes={notes}
+        goalResults={goalResults}
+        goalNames={goalNames}
+        activities={activities}
+        student={student ?? null}
+        dateLabel={dateLabel}
+        tz={tz}
+      />
+    );
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -232,5 +254,101 @@ export function SessionNotePage() {
       )}
       {locked && <p className="text-center text-xs text-muted-foreground">Signed notes are locked. Only the clinic owner can amend them.</p>}
     </div>
+  );
+}
+
+function SessionDocument({
+  ctx,
+  schema,
+  notes,
+  goalResults,
+  goalNames,
+  activities,
+  student,
+  dateLabel,
+  tz,
+}: {
+  ctx: NoteContext;
+  schema: Parameters<typeof TemplateDocument>[0]['schema'];
+  notes: FormValues;
+  goalResults: GoalResult[];
+  goalNames: Map<string, string>;
+  activities: string;
+  student: ReturnType<typeof useStudent>['data'] | null;
+  dateLabel: string;
+  tz: string;
+}) {
+  const { appointment: a, session } = ctx;
+  const age = ageFrom(student?.date_of_birth);
+  const parent = student?.student_parents.find((p) => p.is_primary_contact) ?? student?.student_parents[0];
+  const recorded = goalResults.filter((g) => g.trials || g.successes || g.prompt_level || g.comment);
+
+  return (
+    <ClinicalDocument
+      title="Therapy session note"
+      branch={a.branch ? { name: a.branch.name } : null}
+      docNo={`${a.student?.student_code ?? ''}-${session?.id.slice(0, 8).toUpperCase()}`}
+      patient={[
+        { label: 'Patient', value: `${a.student?.first_name ?? ''} ${a.student?.last_name ?? ''}` },
+        { label: 'Patient ID', value: a.student?.student_code },
+        { label: 'Age / Gender', value: [age !== null ? `${age} yrs` : null, student?.gender !== 'unspecified' ? student?.gender : null].filter(Boolean).join(' · ') },
+        { label: 'Diagnosis', value: student?.diagnosis.join(', ') },
+        { label: 'Parent', value: parent?.parents ? `${parent.parents.full_name} (${parent.relationship})` : null },
+      ]}
+      meta={[
+        { label: 'Therapy', value: THERAPY_LABELS[a.therapy_type] },
+        { label: 'Session date', value: dateLabel },
+        { label: 'Time', value: `${timeIn(a.start_at, tz)} – ${timeIn(a.end_at, tz)}` },
+        { label: 'Therapist', value: a.therapist?.full_name },
+        { label: 'Attendance', value: a.attendance ? <StatusBadge status={a.attendance.status} /> : null },
+      ]}
+      signedBy={session?.is_locked ? a.therapist?.full_name : null}
+      signedAt={session?.is_locked ? session.signed_at : null}
+      statusNote="Draft. Not yet signed by the therapist."
+    >
+      <TemplateDocument schema={schema} values={notes} />
+
+      {recorded.length > 0 && (
+        <section className="break-inside-avoid">
+          <h3 className="mb-2 border-b pb-1 text-xs font-bold tracking-[0.12em] text-primary uppercase print:text-black">Goal performance</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full border text-sm">
+              <thead className="bg-muted/60 print:bg-transparent">
+                <tr>
+                  <th className="border px-3 py-1.5 text-left font-semibold">Goal</th>
+                  <th className="border px-3 py-1.5 text-right font-semibold">Trials</th>
+                  <th className="border px-3 py-1.5 text-right font-semibold">Correct</th>
+                  <th className="border px-3 py-1.5 text-right font-semibold">Accuracy</th>
+                  <th className="border px-3 py-1.5 text-left font-semibold">Prompt</th>
+                </tr>
+              </thead>
+              <tbody className="tabular-nums">
+                {recorded.map((g) => (
+                  <tr key={g.goal_id}>
+                    <td className="border px-3 py-1.5">
+                      {goalNames.get(g.goal_id) ?? 'Goal'}
+                      {g.comment && <span className="block text-xs text-muted-foreground">{g.comment}</span>}
+                    </td>
+                    <td className="border px-3 py-1.5 text-right">{g.trials ?? '—'}</td>
+                    <td className="border px-3 py-1.5 text-right">{g.successes ?? '—'}</td>
+                    <td className="border px-3 py-1.5 text-right font-semibold">
+                      {g.trials && g.successes != null ? `${Math.round((100 * g.successes) / g.trials)}%` : '—'}
+                    </td>
+                    <td className="border px-3 py-1.5">{g.prompt_level ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {activities && (
+        <section className="break-inside-avoid">
+          <h3 className="mb-2 border-b pb-1 text-xs font-bold tracking-[0.12em] text-primary uppercase print:text-black">Activities</h3>
+          <p className="text-sm whitespace-pre-line">{activities}</p>
+        </section>
+      )}
+    </ClinicalDocument>
   );
 }
