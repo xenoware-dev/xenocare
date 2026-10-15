@@ -5,6 +5,7 @@ import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { Button } from '@/components/ui/button';
 import { BranchProvider } from '@/providers/BranchProvider';
 import { BottomNav } from './BottomNav';
+import { CommandPaletteProvider } from './CommandPalette';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 
@@ -19,8 +20,9 @@ export function AppLayout() {
 
   return (
     <BranchProvider>
-      <div className="min-h-screen lg:grid lg:grid-cols-[17rem_1fr] print:block">
-        <aside className="hidden border-r border-sidebar-border lg:block print:hidden">
+      <CommandPaletteProvider>
+      <div className="min-h-screen lg:grid lg:grid-cols-[17.5rem_1fr] print:block">
+        <aside className="hidden lg:block print:hidden">
           <div className="sticky top-0 h-screen">
             <Sidebar />
           </div>
@@ -28,9 +30,9 @@ export function AppLayout() {
 
         {mobileOpen && (
           <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
-            <button className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" aria-label="Close menu" onClick={() => setMobileOpen(false)} />
-            <aside className="absolute inset-y-0 left-0 w-72 border-r shadow-xl animate-in slide-in-from-left duration-200">
-              <Button variant="ghost" size="icon" className="absolute top-4 right-3 z-10" onClick={() => setMobileOpen(false)} aria-label="Close menu">
+            <button className="absolute inset-0 bg-brand-ink/40 backdrop-blur-[2px]" aria-label="Close menu" onClick={() => setMobileOpen(false)} />
+            <aside className="absolute inset-y-0 left-0 w-[19rem] max-w-[85vw] shadow-xl animate-in slide-in-from-left duration-200">
+              <Button variant="ghost" size="icon" className="absolute top-5 right-3 z-10 text-white/70 hover:bg-white/10 hover:text-white" onClick={() => setMobileOpen(false)} aria-label="Close menu">
                 <X />
               </Button>
               <Sidebar onNavigate={() => setMobileOpen(false)} />
@@ -38,9 +40,11 @@ export function AppLayout() {
           </div>
         )}
 
-        <div className="flex min-w-0 flex-col">
+        <div className="relative isolate flex min-w-0 flex-col">
+          {/* faint dot texture at the top of every page */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 bg-dots [mask-image:linear-gradient(to_bottom,black,transparent)] print:hidden" aria-hidden />
           <Topbar onMenu={() => setMobileOpen(true)} />
-          <main className="mx-auto w-full max-w-[1400px] flex-1 p-4 pb-28 md:p-6 md:pb-28 lg:p-8 lg:pb-8 print:max-w-none print:p-0">
+          <main className="mx-auto w-full max-w-[1400px] flex-1 p-4 pb-32 md:p-6 md:pb-32 lg:p-8 lg:pb-10 animate-in fade-in-0 duration-300 print:max-w-none print:p-0">
             <Suspense fallback={<LoadingScreen />}>
               <Outlet />
             </Suspense>
@@ -48,6 +52,7 @@ export function AppLayout() {
         </div>
       </div>
       <BottomNav onMore={() => setMobileOpen(true)} />
+      </CommandPaletteProvider>
     </BranchProvider>
   );
 }

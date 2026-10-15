@@ -177,6 +177,7 @@ export function useCreatePatient() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['students'] });
       qc.invalidateQueries({ queryKey: ['branch-patients'] });
+      qc.invalidateQueries({ queryKey: ['visible-patients'] });
     },
   });
 }

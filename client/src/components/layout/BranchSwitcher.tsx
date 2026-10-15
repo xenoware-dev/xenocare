@@ -20,7 +20,7 @@ export function BranchSwitcher() {
 
   if (branches.length <= 1 && !canSelectAll) {
     return (
-      <span className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1.5 text-sm font-medium">
+      <span className="inline-flex h-10 min-w-0 items-center gap-2 rounded-xl border bg-card px-3 text-sm font-semibold shadow-xs">
         <Building2 className="size-4 text-primary" aria-hidden /> {branches[0]?.name ?? 'No branch'}
       </span>
     );
@@ -29,9 +29,9 @@ export function BranchSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2 rounded-full bg-card" aria-label={`Branch: ${label}`}>
+        <Button variant="outline" className="h-10 min-w-0 gap-2" aria-label={`Branch: ${label}`}>
           <Building2 className="size-4 text-primary" aria-hidden />
-          <span className="max-w-40 truncate">{label}</span>
+          <span className="max-w-28 truncate sm:max-w-40">{label}</span>
           <ChevronsUpDown className="size-3.5 text-muted-foreground" aria-hidden />
         </Button>
       </DropdownMenuTrigger>

@@ -63,7 +63,7 @@ export function ProfilePage() {
 
   return (
     <>
-      <PageHeader icon={CircleUser} title="My profile" description="Your details, working hours and monthly summary" />
+      <PageHeader eyebrow="Me" icon={CircleUser} title="My profile" description="Your details, working hours and monthly summary" />
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>

@@ -23,6 +23,7 @@ export function ReportsPage() {
   return (
     <>
       <PageHeader
+        eyebrow="Therapy"
         title="Progress reports"
         icon={FileBarChart}
         description="Periodic reports for parents, built from attendance and goal progress"

@@ -1,21 +1,6 @@
-import {
-  Building2,
-  CalendarPlus,
-  ClipboardList,
-  FileBarChart,
-  Laptop,
-  LogOut,
-  Menu,
-  Moon,
-  Plane,
-  Plus,
-  Sun,
-  UserPlus,
-  UserRound,
-  UserRoundPlus,
-  type LucideIcon,
-} from 'lucide-react';
+import { Laptop, LogOut, Menu, Moon, Plus, Search, Sun, UserRound } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import { LogoMark } from '@/components/brand/Logo';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,56 +14,62 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/useAuth';
-import { usePermission } from '@/hooks/usePermission';
 import { useTheme } from '@/hooks/useTheme';
 import type { ThemeChoice } from '@/providers/ThemeProvider';
+import { useQuickActions } from '@/routes/actions';
 import { BranchSwitcher } from './BranchSwitcher';
+import { PALETTE_SHORTCUT, useCommandPalette } from './CommandPalette';
 import { ROLE_LABEL } from './Sidebar';
-
-interface QuickAction {
-  label: string;
-  icon: LucideIcon;
-  to: string;
-  show: boolean;
-}
 
 export function Topbar({ onMenu }: { onMenu: () => void }) {
   const { profile, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
-  const role = profile?.role;
-
-  // Role-aware shortcuts for the most common "create" jobs.
-  const actions: QuickAction[] = [
-    { label: 'New appointment', icon: CalendarPlus, to: '/appointments?new=1', show: usePermission('appointments.manage') },
-    { label: 'New patient', icon: UserRoundPlus, to: '/students?new=1', show: usePermission('students.manage') },
-    { label: role === 'owner' ? 'Add branch admin' : 'Add therapist', icon: UserPlus, to: '/staff?new=1', show: usePermission('staff.manage') },
-    { label: 'New branch', icon: Building2, to: '/branches?new=1', show: usePermission('branches.manage') },
-    { label: 'New assessment', icon: ClipboardList, to: '/assessments/new', show: usePermission('assessments.write') },
-    { label: 'New progress report', icon: FileBarChart, to: '/reports/new', show: usePermission('reports.write') },
-    { label: 'Request leave', icon: Plane, to: '/leave', show: role === 'therapist' },
-  ].filter((a) => a.show);
+  const actions = useQuickActions();
+  const palette = useCommandPalette();
 
   return (
-    <header className="sticky top-0 z-20 flex h-[calc(3.5rem+env(safe-area-inset-top))] items-center gap-2 border-b bg-background/85 px-3 pt-[env(safe-area-inset-top)] backdrop-blur-md sm:h-16 sm:gap-3 md:px-6 print:hidden">
+    <header className="sticky top-0 z-20 flex h-[calc(3.75rem+env(safe-area-inset-top))] items-center gap-2 border-b border-border/60 bg-background/80 px-3 pt-[env(safe-area-inset-top)] backdrop-blur-xl sm:h-[4.25rem] sm:gap-3 md:px-6 lg:px-8 print:hidden">
       <Button variant="ghost" size="icon" className="hidden md:inline-flex lg:hidden" onClick={onMenu} aria-label="Open menu">
         <Menu />
       </Button>
+      <LogoMark className="size-8 md:hidden" />
       <BranchSwitcher />
 
-      <div className="ml-auto flex items-center gap-2">
+      {/* Search: the fastest way to a patient. */}
+      <button
+        type="button"
+        onClick={palette.open}
+        className="ml-1 hidden h-10 max-w-sm flex-1 items-center gap-2.5 rounded-xl border bg-card px-3 text-sm text-muted-foreground shadow-xs transition-colors hover:border-primary/30 hover:text-foreground md:flex"
+      >
+        <Search className="size-4" aria-hidden />
+        Search patients, actions…
+        <kbd className="ml-auto rounded-md border bg-muted px-1.5 py-0.5 text-[10px] font-semibold">{PALETTE_SHORTCUT}</kbd>
+      </button>
+
+      <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+        <Button variant="ghost" size="icon" className="md:hidden" onClick={palette.open} aria-label="Search">
+          <Search />
+        </Button>
+
         {actions.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" className="gap-1.5 rounded-full px-4">
-                <Plus className="size-4" /> <span className="hidden sm:inline">New</span>
+              <Button className="hidden gap-1.5 px-4 sm:inline-flex">
+                <Plus className="size-4" /> New
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Create</DropdownMenuLabel>
+            <DropdownMenuContent align="end" className="w-72">
+              <DropdownMenuLabel className="text-xs text-muted-foreground">Create</DropdownMenuLabel>
               {actions.map((a) => (
-                <DropdownMenuItem key={a.label} onSelect={() => navigate(a.to)}>
-                  <a.icon className="text-muted-foreground" /> {a.label}
+                <DropdownMenuItem key={a.label} onSelect={() => navigate(a.to)} className="gap-3">
+                  <span className="flex size-8 items-center justify-center rounded-lg bg-accent">
+                    <a.icon className="text-primary" />
+                  </span>
+                  <span>
+                    <span className="block font-semibold">{a.label}</span>
+                    <span className="block text-xs text-muted-foreground">{a.hint}</span>
+                  </span>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -92,22 +83,25 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
                 <UserAvatar name={profile.full_name || profile.email} path={profile.avatar_url} className="size-9" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-60">
-              <DropdownMenuLabel className="font-normal">
-                <p className="truncate text-sm font-semibold">{profile.full_name || 'Your account'}</p>
-                <p className="truncate text-xs text-muted-foreground">{profile.email}</p>
-                <p className="mt-0.5 text-xs text-primary">{ROLE_LABEL[profile.role]}</p>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel className="flex items-center gap-3 font-normal">
+                <UserAvatar name={profile.full_name || profile.email} path={profile.avatar_url} className="size-10" />
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold">{profile.full_name || 'Your account'}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{profile.email}</span>
+                  <span className="mt-0.5 block text-xs font-semibold text-primary">{ROLE_LABEL[profile.role]}</span>
+                </span>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => navigate('/profile')}>
-                <UserRound className="text-muted-foreground" /> My profile
+                <UserRound /> My profile
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel className="text-xs text-muted-foreground">Appearance</DropdownMenuLabel>
               <DropdownMenuRadioGroup value={theme} onValueChange={(v) => setTheme(v as ThemeChoice)}>
-                <DropdownMenuRadioItem value="light"><Sun className="text-muted-foreground" /> Light</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="dark"><Moon className="text-muted-foreground" /> Dark</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="system"><Laptop className="text-muted-foreground" /> System</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="light"><Sun /> Light</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="dark"><Moon /> Dark</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="system"><Laptop /> System</DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={signOut} variant="destructive">

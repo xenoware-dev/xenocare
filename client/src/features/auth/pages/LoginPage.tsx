@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { isAuthApiError } from '@supabase/supabase-js';
-import { AlertCircle, CheckCircle2, HeartPulse, Loader2 } from 'lucide-react';
+import { Activity, AlertCircle, CheckCircle2, Hand, Loader2, MessageCircle, Sparkles } from 'lucide-react';
+import { Logo } from '@/components/brand/Logo';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Navigate, useLocation, useNavigate } from 'react-router';
@@ -82,43 +83,58 @@ export function LoginPage() {
   });
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
+    <div className="grid min-h-screen lg:grid-cols-[1.15fr_1fr]">
       {/* Brand panel */}
-      <aside className="relative hidden overflow-hidden bg-primary p-12 text-primary-foreground lg:flex lg:flex-col">
-        <div className="absolute -top-24 -right-24 size-96 rounded-full bg-white/10" aria-hidden />
-        <div className="absolute -bottom-32 -left-16 size-[28rem] rounded-full bg-white/5" aria-hidden />
-        <div className="relative flex items-center gap-3">
-          <span className="flex size-11 items-center justify-center rounded-2xl bg-white/15">
-            <HeartPulse className="size-6" aria-hidden />
-          </span>
-          <span className="text-2xl font-bold">Absolute</span>
-        </div>
-        <div className="relative mt-auto max-w-md space-y-6">
-          <h2 className="text-4xl leading-tight font-bold">Every session, every goal, every child, in one place.</h2>
-          <ul className="space-y-3 text-primary-foreground/85">
-            {['Schedules and check-in for every branch', 'SOAP notes, SMART goals and progress charts', 'Progress reports parents can understand'].map((t) => (
-              <li key={t} className="flex items-center gap-3">
-                <CheckCircle2 className="size-5 shrink-0" aria-hidden /> {t}
-              </li>
+      <aside className="relative hidden overflow-hidden bg-brand-ink p-12 text-white lg:flex lg:flex-col">
+        <div className="absolute inset-0 opacity-[0.15] [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:20px_20px]" aria-hidden />
+        <div className="absolute -top-32 -right-32 size-[30rem] rounded-full bg-primary/40 blur-3xl" aria-hidden />
+        <div className="absolute -bottom-40 -left-24 size-[26rem] rounded-full bg-sunflower/25 blur-3xl" aria-hidden />
+
+        <Logo tone="light" className="relative" />
+
+        <div className="relative my-auto max-w-lg py-12">
+          <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-bold tracking-[0.14em] text-white/80 uppercase">
+            <span className="size-1.5 rounded-full bg-sunflower" aria-hidden /> Clinic workspace
+          </p>
+          <h2 className="font-display text-5xl leading-[1.05] font-extrabold tracking-tight xl:text-6xl">
+            Every child can <span className="relative text-sunflower">grow<svg viewBox="0 0 120 12" className="absolute -bottom-2 left-0 w-full" aria-hidden><path d="M2 8c30-6 80-8 116-2" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" /></svg></span> with the right support.
+          </h2>
+          <p className="mt-6 text-lg text-white/70">Schedules, session notes, goals and progress reports for every child, in one calm place.</p>
+          <div className="mt-8 flex flex-wrap gap-2.5">
+            {[
+              { Icon: MessageCircle, label: 'Speech therapy' },
+              { Icon: Hand, label: 'Occupational therapy' },
+              { Icon: Activity, label: 'Physiotherapy' },
+              { Icon: Sparkles, label: 'Special education' },
+            ].map(({ Icon, label }) => (
+              <span key={label} className="inline-flex items-center gap-2 rounded-xl bg-white/[0.08] px-3 py-2 text-sm font-semibold ring-1 ring-white/10">
+                <Icon className="size-4 text-sunflower" aria-hidden /> {label}
+              </span>
             ))}
-          </ul>
+          </div>
         </div>
-        <p className="relative mt-12 text-sm text-primary-foreground/70">Speech · Occupational therapy · Physiotherapy</p>
+
+        <ul className="relative grid grid-cols-3 gap-4 border-t border-white/10 pt-6 text-sm text-white/70">
+          {['Check-in in one tap', 'SOAP notes & SMART goals', 'Reports parents understand'].map((t) => (
+            <li key={t} className="flex items-start gap-2">
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden /> {t}
+            </li>
+          ))}
+        </ul>
       </aside>
 
       {/* Sign-in */}
-      <main className="flex items-center justify-center bg-background p-6">
-        <div className="w-full max-w-sm space-y-8">
+      <main className="relative flex items-center justify-center bg-background p-6">
+        <div className="pointer-events-none absolute inset-0 bg-dots [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)]" aria-hidden />
+        <div className="relative w-full max-w-sm space-y-8">
           <div className="space-y-2 text-center lg:text-left">
-            <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground lg:hidden">
-              <HeartPulse className="size-6" aria-hidden />
-            </span>
-            <h1 className="text-3xl font-bold tracking-tight">Welcome back</h1>
+            <Logo className="mb-8 justify-center lg:hidden" />
+            <h1 className="text-4xl font-extrabold tracking-tight">Welcome back</h1>
             <p className="text-muted-foreground">Sign in with the Google account your clinic registered.</p>
           </div>
 
           <div className="space-y-4">
-            <Button type="button" size="lg" variant="outline" className="h-12 w-full gap-3 text-base shadow-xs" onClick={onGoogle} disabled={googleBusy || loading}>
+            <Button type="button" size="lg" variant="outline" className="h-13 w-full gap-3 rounded-2xl text-base shadow-soft" onClick={onGoogle} disabled={googleBusy || loading}>
               {googleBusy || loading ? <Loader2 className="animate-spin" aria-hidden /> : <GoogleIcon />}
               Continue with Google
             </Button>
@@ -135,7 +151,7 @@ export function LoginPage() {
                 Use email and password instead
               </button>
             ) : (
-              <form onSubmit={onSubmit} className="space-y-4 rounded-xl border bg-card p-4" noValidate>
+              <form onSubmit={onSubmit} className="space-y-4 rounded-2xl border bg-card p-5 shadow-soft" noValidate>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input id="email" type="email" autoComplete="email" autoFocus {...register('email')} />
@@ -146,7 +162,7 @@ export function LoginPage() {
                   <Input id="password" type="password" autoComplete="current-password" {...register('password')} />
                   {formState.errors.password && <p className="text-sm text-destructive">{formState.errors.password.message}</p>}
                 </div>
-                <Button type="submit" className="w-full" disabled={formState.isSubmitting}>
+                <Button type="submit" size="lg" className="w-full" disabled={formState.isSubmitting}>
                   {formState.isSubmitting ? 'Signing in…' : 'Sign in'}
                 </Button>
               </form>

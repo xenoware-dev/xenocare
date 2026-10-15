@@ -73,3 +73,13 @@ export const NAV: NavGroup[] = [
     ],
   },
 ];
+
+/** Nav groups filtered to what this user may open. */
+export function visibleNav(permissions: Set<string>, role: AppRole | undefined): NavGroup[] {
+  return NAV.map((group) => ({
+    ...group,
+    items: group.items
+      .filter((i) => (!i.permission || permissions.has(i.permission)) && (!i.roles || (role && i.roles.includes(role))))
+      .map((i) => (role === 'therapist' && i.therapistLabel ? { ...i, label: i.therapistLabel } : i)),
+  })).filter((g) => g.items.length);
+}

@@ -31,6 +31,7 @@ export function BranchesPage() {
   return (
     <>
       <PageHeader
+        eyebrow="Administration"
         title="Branches"
         icon={Building2}
         description="Create branches, then add a branch admin for each one on the Staff page."

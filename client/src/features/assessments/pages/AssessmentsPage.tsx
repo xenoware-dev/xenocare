@@ -23,6 +23,7 @@ export function AssessmentsPage() {
   return (
     <>
       <PageHeader
+        eyebrow="Therapy"
         title="Assessments"
         icon={ClipboardList}
         description="Initial and periodic assessments (Speech, OT, Physio)"

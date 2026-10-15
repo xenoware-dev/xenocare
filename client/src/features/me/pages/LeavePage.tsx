@@ -50,7 +50,7 @@ export function LeavePage() {
 
   return (
     <>
-      <PageHeader icon={Plane} title="My leave" description="Request leave. Your branch admin approves it." />
+      <PageHeader eyebrow="Me" icon={Plane} title="My leave" description="Request leave. Your branch admin approves it." />
       <div className="grid gap-6 lg:grid-cols-[22rem_1fr]">
         <Card className="self-start">
           <CardHeader>

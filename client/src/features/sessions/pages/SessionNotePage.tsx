@@ -1,10 +1,12 @@
-import { ArrowLeft, Lock, Save } from 'lucide-react';
+import { ArrowLeft, Check, Lock, Save, ShieldAlert, X } from 'lucide-react';
+import { TherapyChip } from '@/components/common/TherapyChip';
+import { UserAvatar } from '@/components/common/UserAvatar';
+import { cn } from '@/lib/utils';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { useConfirm } from '@/components/common/ConfirmDialog';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
-import { NativeSelect } from '@/components/common/FormField';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -44,6 +46,7 @@ export function SessionNotePage() {
   const [notes, setNotes] = useState<FormValues>({});
   const [goalResults, setGoalResults] = useState<GoalResult[]>([]);
   const [activities, setActivities] = useState('');
+  const [dirty, setDirty] = useState(false);
 
   // Load the saved draft once.
   useEffect(() => {
@@ -52,7 +55,29 @@ export function SessionNotePage() {
     setNotes(rest as FormValues);
     setGoalResults(goal_results ?? []);
     setActivities(ctx.session?.activities ?? '');
+    setDirty(false);
   }, [ctx]);
+
+  // Don't lose a half-written note to a closed tab.
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+
+  // Ctrl/⌘+S saves the draft.
+  const submitRef = useRef<(sign: boolean) => void>(() => {});
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.key === 's' || e.key === 'S') && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        submitRef.current(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const planId = useMemo(
     () => plans?.find((p) => p.status === 'active' && p.therapy_type === ctx?.appointment.therapy_type)?.id ?? null,
@@ -69,12 +94,19 @@ export function SessionNotePage() {
   const readOnly = locked || !canWrite;
   const dateLabel = new Intl.DateTimeFormat('en-IN', { dateStyle: 'full', timeZone: tz }).format(new Date(appointment.start_at));
 
-  const setGoal = (goalId: string, patch: Partial<GoalResult>) =>
+  const setGoal = (goalId: string, patch: Partial<GoalResult>) => {
+    setDirty(true);
     setGoalResults((rows) =>
       rows.some((r) => r.goal_id === goalId)
         ? rows.map((r) => (r.goal_id === goalId ? { ...r, ...patch } : r))
         : [...rows, { goal_id: goalId, ...patch }],
     );
+  };
+  const tally = (goalId: string, correct: boolean) => {
+    const r = goalResults.find((x) => x.goal_id === goalId);
+    setGoal(goalId, { trials: (r?.trials ?? 0) + 1, successes: (r?.successes ?? 0) + (correct ? 1 : 0) });
+  };
+  const missing = template && !readOnly ? missingRequired(template.schema, notes) : [];
 
   const submit = async (sign: boolean) => {
     if (sign && template) {
@@ -109,11 +141,16 @@ export function SessionNotePage() {
         next_session_plan: plan.next_steps ?? '',
         sign,
       });
+      setDirty(false);
       toast.success(sign ? 'Note signed and locked' : 'Draft saved');
       if (sign) navigate(-1);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not save the note');
     }
+  };
+
+  submitRef.current = (sign) => {
+    if (!readOnly && !save.isPending) void submit(sign);
   };
 
   // Signed (or view-only) notes read as a clinical document, not a form.
@@ -136,32 +173,47 @@ export function SessionNotePage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={() => navigate(-1)}>
-            <ArrowLeft /> Back
-          </Button>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            <Link to={`/students/${appointment.student_id}`} className="hover:underline">
-              {appointment.student?.first_name} {appointment.student?.last_name}
-            </Link>
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {THERAPY_LABELS[appointment.therapy_type]} · {dateLabel} · {timeIn(appointment.start_at, tz)}–{timeIn(appointment.end_at, tz)}
-            {!isMine && appointment.therapist && ` · ${appointment.therapist.full_name}`}
-          </p>
+      <Button variant="ghost" size="sm" className="-ml-2" onClick={() => navigate(-1)}>
+        <ArrowLeft /> Back
+      </Button>
+      <section className="relative overflow-hidden rounded-3xl border border-border/70 bg-hero p-5 shadow-soft sm:p-6">
+        <div className="relative flex flex-wrap items-center gap-4">
+          <UserAvatar name={`${appointment.student?.first_name ?? ''} ${appointment.student?.last_name ?? ''}`} className="size-14 text-base ring-4 ring-card" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-bold tracking-[0.12em] text-primary uppercase">Session note</p>
+            <h1 className="text-2xl leading-tight font-extrabold tracking-tight sm:text-3xl">
+              <Link to={`/students/${appointment.student_id}`} className="hover:text-primary">
+                {appointment.student?.first_name} {appointment.student?.last_name}
+              </Link>
+            </h1>
+            <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <TherapyChip type={appointment.therapy_type} short />
+              {dateLabel} · {timeIn(appointment.start_at, tz)}–{timeIn(appointment.end_at, tz)}
+              {!isMine && appointment.therapist && ` · ${appointment.therapist.full_name}`}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {appointment.attendance && <StatusBadge status={appointment.attendance.status} />}
+            {locked ? (
+              <Badge>
+                <Lock className="size-3" /> Signed {session?.signed_at && new Date(session.signed_at).toLocaleDateString('en-IN')}
+              </Badge>
+            ) : (
+              <StatusBadge status="draft" label={session ? 'Draft' : 'New note'} />
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {appointment.attendance && <StatusBadge status={appointment.attendance.status} />}
-          {locked ? (
-            <Badge>
-              <Lock className="size-3" /> Signed {session?.signed_at && new Date(session.signed_at).toLocaleDateString('en-IN')}
-            </Badge>
-          ) : (
-            <StatusBadge status="draft" label={session ? 'Draft' : 'New note'} />
-          )}
+      </section>
+
+      {(student?.allergies || student?.medications) && (
+        <div className="flex flex-wrap items-start gap-x-6 gap-y-1 rounded-2xl border border-destructive/25 bg-danger-soft px-4 py-3 text-sm" role="note">
+          <span className="inline-flex items-center gap-2 font-bold text-destructive">
+            <ShieldAlert className="size-4" aria-hidden /> Remember
+          </span>
+          {student.allergies && <span><span className="font-semibold">Allergies:</span> {student.allergies}</span>}
+          {student.medications && <span><span className="font-semibold">Medications:</span> {student.medications}</span>}
         </div>
-      </div>
+      )}
 
       <Card>
         <CardHeader>
@@ -170,7 +222,16 @@ export function SessionNotePage() {
         </CardHeader>
         <CardContent>
           {template ? (
-            <TemplateForm schema={template.schema} values={notes} onChange={setNotes} readOnly={readOnly} idPrefix="soap" />
+            <TemplateForm
+              schema={template.schema}
+              values={notes}
+              onChange={(v) => {
+                setDirty(true);
+                setNotes(v);
+              }}
+              readOnly={readOnly}
+              idPrefix="soap"
+            />
           ) : (
             <p className="text-sm text-muted-foreground">Loading template…</p>
           )}
@@ -192,37 +253,75 @@ export function SessionNotePage() {
               const r = goalResults.find((x) => x.goal_id === g.id) ?? { goal_id: g.id };
               const pct = r.trials && r.successes != null ? Math.round((100 * r.successes) / r.trials) : null;
               return (
-                <div key={g.id} className="rounded-md border p-3">
-                  <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="text-sm font-medium">
-                      {g.domain && <span className="text-muted-foreground">{g.domain}: </span>}
+                <div key={g.id} className="rounded-2xl border border-border/70 bg-muted/30 p-4">
+                  <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+                    <p className="text-sm font-semibold">
+                      {g.domain && <span className="mr-1.5 rounded-md bg-accent px-1.5 py-0.5 text-[11px] font-bold text-primary">{g.domain}</span>}
                       {g.description}
                     </p>
-                    {pct !== null && <Badge variant="outline">{pct}% accuracy</Badge>}
+                    {pct !== null && (
+                      <span className={cn('rounded-full px-2 py-0.5 text-xs font-bold tabular-nums', pct >= 80 ? 'bg-success-soft text-success' : pct >= 50 ? 'bg-warning-soft text-warning' : 'bg-danger-soft text-destructive')}>
+                        {pct}% accuracy
+                      </span>
+                    )}
                   </div>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-[6rem_6rem_10rem_1fr]">
+
+                  {!readOnly && (
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <Button type="button" variant="outline" className="flex-1 border-success/30 sm:flex-none" onClick={() => tally(g.id, true)}>
+                        <Check className="text-success" /> Correct
+                      </Button>
+                      <Button type="button" variant="outline" className="flex-1 border-destructive/25 sm:flex-none" onClick={() => tally(g.id, false)}>
+                        <X className="text-destructive" /> Missed
+                      </Button>
+                      <span className="w-full text-xs text-muted-foreground sm:w-auto">Tap after each trial, or type the totals below.</span>
+                    </div>
+                  )}
+                  {r.trials ? (
+                    <div className="mb-3 flex h-2 overflow-hidden rounded-full bg-danger-soft" role="presentation">
+                      <div className="h-full bg-success transition-[width] duration-300" style={{ width: `${((r.successes ?? 0) / r.trials) * 100}%` }} />
+                    </div>
+                  ) : null}
+
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-[6rem_6rem_1fr]">
                     <div className="space-y-1">
                       <Label htmlFor={`t-${g.id}`} className="text-xs">Trials</Label>
-                      <Input id={`t-${g.id}`} type="number" min={0} value={r.trials ?? ''} readOnly={readOnly}
+                      <Input id={`t-${g.id}`} type="number" inputMode="numeric" min={0} value={r.trials ?? ''} readOnly={readOnly}
                         onChange={(e) => setGoal(g.id, { trials: e.target.value === '' ? null : Number(e.target.value) })} />
                     </div>
                     <div className="space-y-1">
                       <Label htmlFor={`s-${g.id}`} className="text-xs">Successes</Label>
-                      <Input id={`s-${g.id}`} type="number" min={0} value={r.successes ?? ''} readOnly={readOnly}
+                      <Input id={`s-${g.id}`} type="number" inputMode="numeric" min={0} value={r.successes ?? ''} readOnly={readOnly}
                         onChange={(e) => setGoal(g.id, { successes: e.target.value === '' ? null : Number(e.target.value) })} />
-                    </div>
-                    <div className="col-span-2 space-y-1 sm:col-span-1">
-                      <Label htmlFor={`p-${g.id}`} className="text-xs">Prompt level</Label>
-                      <NativeSelect id={`p-${g.id}`} value={r.prompt_level ?? ''} disabled={readOnly}
-                        onChange={(e) => setGoal(g.id, { prompt_level: e.target.value || null })}>
-                        <option value="">—</option>
-                        {PROMPT_LEVELS.map((p) => <option key={p} value={p}>{p}</option>)}
-                      </NativeSelect>
                     </div>
                     <div className="col-span-2 space-y-1 sm:col-span-1">
                       <Label htmlFor={`c-${g.id}`} className="text-xs">Comment</Label>
                       <Input id={`c-${g.id}`} value={r.comment ?? ''} readOnly={readOnly}
                         onChange={(e) => setGoal(g.id, { comment: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-1.5">
+                    <p className="text-xs font-medium">Prompt level</p>
+                    <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Prompt level">
+                      {PROMPT_LEVELS.map((p) => {
+                        const on = r.prompt_level === p;
+                        return (
+                          <button
+                            key={p}
+                            type="button"
+                            role="radio"
+                            aria-checked={on}
+                            disabled={readOnly}
+                            onClick={() => setGoal(g.id, { prompt_level: on ? null : p })}
+                            className={cn(
+                              'rounded-full border px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-60',
+                              on ? 'border-primary bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground',
+                            )}
+                          >
+                            {p}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -237,14 +336,30 @@ export function SessionNotePage() {
           <CardTitle>Activities done</CardTitle>
         </CardHeader>
         <CardContent>
-          <Textarea rows={3} value={activities} onChange={(e) => setActivities(e.target.value)} readOnly={readOnly}
+          <Textarea rows={3} value={activities} onChange={(e) => { setDirty(true); setActivities(e.target.value); }} readOnly={readOnly}
             placeholder="Games, exercises and materials used in this session" aria-label="Activities done" />
         </CardContent>
       </Card>
 
       {!readOnly && (
-        <div className="sticky bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-10 -mx-4 flex rounded-t-xl lg:bottom-0 lg:rounded-none flex-wrap justify-end gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur">
-          <Button variant="outline" onClick={() => submit(false)} disabled={save.isPending}>
+        <div className="sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] z-10 flex flex-wrap items-center gap-3 rounded-2xl border bg-card/95 p-3 shadow-lift backdrop-blur lg:bottom-4">
+          <p className="mr-auto flex items-center gap-2 pl-1 text-sm">
+            {missing.length ? (
+              <>
+                <span className="size-2 rounded-full bg-warning" aria-hidden />
+                <span className="text-muted-foreground">
+                  {missing.length} required field{missing.length > 1 ? 's' : ''} left
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="size-2 rounded-full bg-success" aria-hidden />
+                <span className="text-muted-foreground">Ready to sign</span>
+              </>
+            )}
+            {dirty && <span className="hidden text-xs text-muted-foreground sm:inline">· unsaved changes</span>}
+          </p>
+          <Button variant="outline" onClick={() => submit(false)} disabled={save.isPending} title="Ctrl+S">
             <Save /> Save draft
           </Button>
           <Button onClick={() => submit(true)} disabled={save.isPending}>

@@ -63,6 +63,7 @@ export function StaffPage() {
   return (
     <>
       <PageHeader
+        eyebrow="Administration"
         title="Staff"
         icon={Users}
         description={

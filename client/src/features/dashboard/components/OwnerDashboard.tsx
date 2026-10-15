@@ -1,17 +1,16 @@
-import { AlertTriangle, Building2, CalendarCheck, Plus, UserCog, Users } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Building2, CalendarCheck, Plus, UserCog, Users } from 'lucide-react';
 import { Link } from 'react-router';
-import { PageHeader } from '@/components/common/PageHeader';
-import { StatSkeleton, TableSkeleton } from '@/components/common/Skeletons';
+import { DayHero, firstName, greeting } from '@/components/common/DayHero';
+import { StatSkeleton } from '@/components/common/Skeletons';
+import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/common/StatCard';
 import { TonePill } from '@/components/common/StatusBadge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { useBranch } from '@/hooks/useBranch';
 import { todayIn } from '@/lib/time';
 import { useBranchComparison } from '../api';
-import { greeting } from './BranchDashboard';
 
 /** Owner, "All branches": how each branch is doing this month. */
 export function OwnerDashboard() {
@@ -36,19 +35,25 @@ export function OwnerDashboard() {
 
   return (
     <>
-      <PageHeader
-        title={`${greeting()}, ${profile?.full_name?.split(' ')[0] || 'there'}`}
-        description={`All branches · ${month}`}
+      <DayHero
+        eyebrow={`All branches · ${month}`}
+        title={
+          <>
+            {greeting()}, <span className="text-primary">{firstName(profile?.full_name)}</span>
+          </>
+        }
+        description="How every centre is doing this month. Pick a branch in the switcher to see its day in detail."
         actions={
           <>
-            <Button variant="outline" asChild>
-              <Link to="/branches?new=1"><Plus /> New branch</Link>
-            </Button>
-            <Button asChild>
+            <Button asChild size="lg">
               <Link to="/staff?new=1"><UserCog /> Add branch admin</Link>
+            </Button>
+            <Button variant="outline" size="lg" asChild>
+              <Link to="/branches?new=1"><Plus /> New branch</Link>
             </Button>
           </>
         }
+        className="mb-6"
       />
       {error && <p className="mb-4 text-sm text-destructive">{error.message}</p>}
 
@@ -81,47 +86,74 @@ export function OwnerDashboard() {
           </Card>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Branches this month</CardTitle>
-            <CardDescription>Open a branch to see its live schedule and alerts.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Branch</TableHead>
-                  <TableHead>Admin</TableHead>
-                  <TableHead className="text-right">Therapists</TableHead>
-                  <TableHead className="text-right">Patients</TableHead>
-                  <TableHead className="text-right">Sessions</TableHead>
-                  <TableHead className="text-right">Attendance</TableHead>
-                  <TableHead className="text-right">No-shows</TableHead>
-                  <TableHead><span className="sr-only">Open</span></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading && <TableSkeleton cols={8} />}
-                {rows.map((b) => (
-                  <TableRow key={b.id}>
-                    <TableCell>
-                      <span className="font-medium">{b.name}</span> <span className="font-mono text-xs text-muted-foreground">{b.code}</span>
-                    </TableCell>
-                    <TableCell className="text-sm">{b.admins.length ? b.admins.join(', ') : <TonePill tone="warning">None</TonePill>}</TableCell>
-                    <TableCell className="text-right tabular-nums">{b.therapists}</TableCell>
-                    <TableCell className="text-right tabular-nums">{b.activePatients}</TableCell>
-                    <TableCell className="text-right tabular-nums">{b.sessionsDone}</TableCell>
-                    <TableCell className="text-right tabular-nums">{b.attendancePct === null ? '—' : `${b.attendancePct}%`}</TableCell>
-                    <TableCell className="text-right tabular-nums">{b.noShows || '—'}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => setBranchId(b.id)}>Open</Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <section>
+          <div className="mb-3 flex items-end justify-between gap-2">
+            <div>
+              <h2 className="font-display text-lg font-bold">Branches this month</h2>
+              <p className="text-sm text-muted-foreground">Open a branch to see its live schedule and alerts.</p>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {isLoading && [0, 1, 2].map((i) => <Skeleton key={i} className="h-64 rounded-2xl" />)}
+            {rows.map((b) => {
+              const total = b.sessionsDone + b.noShows;
+              return (
+                <article key={b.id} className="group flex flex-col rounded-2xl border border-border/70 bg-card p-5 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-lift">
+                  <header className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="flex size-11 items-center justify-center rounded-xl bg-accent text-primary">
+                        <Building2 className="size-5" aria-hidden />
+                      </span>
+                      <div>
+                        <h3 className="font-display text-lg leading-tight font-bold">{b.name}</h3>
+                        <p className="font-mono text-xs text-muted-foreground">{b.code}</p>
+                      </div>
+                    </div>
+                    {b.admins.length === 0 && <TonePill tone="warning">No admin</TonePill>}
+                  </header>
+
+                  <dl className="mt-5 grid grid-cols-3 gap-2 text-center">
+                    {[
+                      ['Patients', b.activePatients],
+                      ['Therapists', b.therapists],
+                      ['Sessions', b.sessionsDone],
+                    ].map(([k, v]) => (
+                      <div key={k} className="rounded-xl bg-muted/60 py-2.5">
+                        <dt className="text-[11px] font-semibold text-muted-foreground">{k}</dt>
+                        <dd className="font-display text-xl font-extrabold tabular-nums">{v}</dd>
+                      </div>
+                    ))}
+                  </dl>
+
+                  <div className="mt-4 space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="font-semibold text-muted-foreground">Attendance</span>
+                      <span className="font-bold tabular-nums">{b.attendancePct === null ? '—' : `${b.attendancePct}%`}</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={b.attendancePct !== null && b.attendancePct < 80 ? 'h-full rounded-full bg-warning' : 'h-full rounded-full bg-primary'}
+                        style={{ width: `${b.attendancePct ?? 0}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {b.noShows ? `${b.noShows} no-show${b.noShows > 1 ? 's' : ''} of ${total} sessions` : 'No no-shows this month'}
+                    </p>
+                  </div>
+
+                  <footer className="mt-5 flex items-center justify-between gap-3 border-t pt-4">
+                    <p className="min-w-0 truncate text-xs text-muted-foreground">
+                      {b.admins.length ? <>Admin: <span className="font-semibold text-foreground">{b.admins.join(', ')}</span></> : 'Assign a branch admin'}
+                    </p>
+                    <Button size="sm" variant="brand" onClick={() => setBranchId(b.id)}>
+                      Open <ArrowRight />
+                    </Button>
+                  </footer>
+                </article>
+              );
+            })}
+          </div>
+        </section>
       </div>
     </>
   );

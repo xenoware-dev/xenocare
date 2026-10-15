@@ -1,10 +1,13 @@
-import { ArrowLeft, ClipboardList, FileBarChart, NotebookPen, Phone } from 'lucide-react';
+import { ArrowLeft, Cake, CalendarDays, CalendarPlus, ClipboardList, FileBarChart, MapPin, MessageCircle, NotebookPen, Phone, ShieldAlert, Target, UserRound } from 'lucide-react';
+import { EmptyState } from '@/components/common/EmptyState';
+import { TherapyChip } from '@/components/common/TherapyChip';
+import { cn } from '@/lib/utils';
+import { ageOf } from '../age';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { EmptyTableRow, TableSkeleton } from '@/components/common/Skeletons';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Link, useNavigate, useParams } from 'react-router';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -19,15 +22,6 @@ import { formatDate } from '@/lib/format';
 import { THERAPY_LABELS } from '@/types/app';
 import { useStudent } from '../api';
 
-function age(dob: string | null) {
-  if (!dob) return null;
-  const d = new Date(dob);
-  const now = new Date();
-  let years = now.getFullYear() - d.getFullYear();
-  if (now < new Date(now.getFullYear(), d.getMonth(), d.getDate())) years--;
-  return years;
-}
-
 export function StudentDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -35,11 +29,12 @@ export function StudentDetailPage() {
   const canPlan = usePermission('plans.write');
   const canAssess = usePermission('assessments.write');
   const canReport = usePermission('reports.write');
+  const canBook = usePermission('appointments.manage');
   const { data: s, isLoading, error } = useStudent(id);
 
   if (isLoading) return <LoadingScreen />;
   if (error) return <p className="text-sm text-destructive">{error.message}</p>;
-  if (!s) return <p className="text-sm text-muted-foreground">Patient not found, or you are not on this patient's care team.</p>;
+  if (!s) return <EmptyState icon={UserRound} title="Patient not found" description="This patient doesn't exist, or you are not on their care team." />;
 
   const care = s.student_therapists.filter((t) => !t.end_date);
   const mine = care.find((t) => t.therapist_id === profile?.id);
@@ -49,54 +44,89 @@ export function StudentDetailPage() {
     : profile?.role === 'admin' && care[0]
       ? { id: care[0].therapist_id, therapy_type: care[0].therapy_type }
       : null;
-  const years = age(s.date_of_birth);
+  const years = ageOf(s.date_of_birth);
+  const name = `${s.first_name} ${s.last_name ?? ''}`.trim();
+  const primary = s.student_parents.find((p) => p.is_primary_contact) ?? s.student_parents[0];
+  const primaryPhone = primary?.parents?.whatsapp_number ?? primary?.parents?.phone;
+  const types = [...new Set(care.map((t) => t.therapy_type))];
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={() => navigate(-1)}>
-            <ArrowLeft /> Back
-          </Button>
-          <div className="flex flex-wrap items-center gap-3">
-            <UserAvatar name={`${s.first_name} ${s.last_name ?? ''}`} className="size-12 text-base" />
-            <h1 className="text-2xl font-bold tracking-tight">
-              {s.first_name} {s.last_name}
-            </h1>
-            <StatusBadge status={s.status} />
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            <span className="font-mono">{s.student_code}</span>
-            {years !== null && ` · ${years} yrs`}
-            {s.gender !== 'unspecified' && ` · ${s.gender}`} · {s.branches?.name} · since {formatDate(s.intake_date)}
-          </p>
-          {s.diagnosis.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {s.diagnosis.map((d) => <Badge key={d} variant="outline">{d}</Badge>)}
+      <Button variant="ghost" size="sm" className="-ml-2" onClick={() => navigate(-1)}>
+        <ArrowLeft /> Back
+      </Button>
+
+      <section className="relative overflow-hidden rounded-3xl border border-border/70 bg-hero p-5 shadow-soft sm:p-7">
+        <div className="pointer-events-none absolute inset-0 bg-dots opacity-50 [mask-image:linear-gradient(to_left,black,transparent_55%)]" aria-hidden />
+        <div className="relative flex flex-wrap items-start gap-5">
+          <UserAvatar name={name} className="size-20 text-2xl ring-4 ring-card sm:size-24" />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-[1.7rem] leading-tight font-extrabold tracking-tight sm:text-4xl">{name}</h1>
+              <StatusBadge status={s.status} />
             </div>
-          )}
+            <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+              <span className="rounded-md bg-card/80 px-1.5 py-0.5 font-mono text-xs font-semibold text-foreground ring-1 ring-border">{s.student_code}</span>
+              {years !== null && <span className="inline-flex items-center gap-1"><Cake className="size-3.5" aria-hidden /> {years} years</span>}
+              {s.gender !== 'unspecified' && <span className="capitalize">{s.gender}</span>}
+              {s.branches?.name && <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden /> {s.branches.name}</span>}
+              <span className="inline-flex items-center gap-1"><CalendarDays className="size-3.5" aria-hidden /> Since {formatDate(s.intake_date)}</span>
+            </p>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {types.map((t) => <TherapyChip key={t} type={t} />)}
+              {s.diagnosis.map((d) => (
+                <span key={d} className="rounded-full border bg-card/70 px-2 py-0.5 text-xs font-semibold">{d}</span>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex w-full flex-wrap gap-2 lg:w-auto lg:max-w-xs lg:justify-end">
+            {canBook && (
+              <Button asChild>
+                <Link to="/appointments?new=1"><CalendarPlus /> Book session</Link>
+              </Button>
+            )}
+            {canAssess && (
+              <Button asChild variant="outline">
+                <Link to={`/assessments/new?student=${s.id}`}><ClipboardList /> Assessment</Link>
+              </Button>
+            )}
+            {canReport && (
+              <Button asChild variant="outline">
+                <Link to={`/reports/new?student=${s.id}`}><FileBarChart /> Progress report</Link>
+              </Button>
+            )}
+            {primaryPhone && (
+              <>
+                <Button asChild variant="outline" size="icon" aria-label={`Call ${primary?.parents?.full_name}`}>
+                  <a href={`tel:${primaryPhone}`}><Phone /></a>
+                </Button>
+                <Button asChild variant="outline" size="icon" aria-label={`WhatsApp ${primary?.parents?.full_name}`}>
+                  <a href={`https://wa.me/${primaryPhone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer"><MessageCircle className="text-success" /></a>
+                </Button>
+              </>
+            )}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {canAssess && (
-            <Button asChild variant="outline">
-              <Link to={`/assessments/new?student=${s.id}`}><ClipboardList /> New assessment</Link>
-            </Button>
-          )}
-          {canReport && (
-            <Button asChild variant="outline">
-              <Link to={`/reports/new?student=${s.id}`}><FileBarChart /> New report</Link>
-            </Button>
-          )}
+      </section>
+
+      {(s.allergies || s.medications) && (
+        <div className="flex flex-wrap items-start gap-x-6 gap-y-2 rounded-2xl border border-destructive/25 bg-danger-soft px-4 py-3 text-sm" role="note">
+          <span className="inline-flex items-center gap-2 font-bold text-destructive">
+            <ShieldAlert className="size-4" aria-hidden /> Before the session
+          </span>
+          {s.allergies && <span><span className="font-semibold">Allergies:</span> {s.allergies}</span>}
+          {s.medications && <span><span className="font-semibold">Medications:</span> {s.medications}</span>}
         </div>
-      </div>
+      )}
 
       <Tabs defaultValue="overview">
-        <TabsList className="w-full justify-start overflow-x-auto sm:w-auto">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="plan">Plan & goals</TabsTrigger>
-          <TabsTrigger value="sessions">Sessions</TabsTrigger>
-          <TabsTrigger value="assessments">Assessments</TabsTrigger>
-          <TabsTrigger value="reports">Reports</TabsTrigger>
+        <TabsList className="w-full justify-start overflow-x-auto scrollbar-none sm:w-auto">
+          <TabsTrigger value="overview"><UserRound /> Overview</TabsTrigger>
+          <TabsTrigger value="plan"><Target /> Plan & goals</TabsTrigger>
+          <TabsTrigger value="sessions"><NotebookPen /> Sessions</TabsTrigger>
+          <TabsTrigger value="assessments"><ClipboardList /> Assessments</TabsTrigger>
+          <TabsTrigger value="reports"><FileBarChart /> Reports</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4">
@@ -107,11 +137,18 @@ export function StudentDetailPage() {
                 {care.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No therapist assigned.</p>
                 ) : (
-                  <ul className="space-y-2 text-sm">
+                  <ul className="space-y-3">
                     {care.map((t) => (
-                      <li key={`${t.therapist_id}-${t.therapy_type}`} className="flex justify-between gap-4">
-                        <span className="font-medium">{t.profiles?.full_name}</span>
-                        <span className="text-muted-foreground">{THERAPY_LABELS[t.therapy_type]} · since {formatDate(t.start_date)}</span>
+                      <li key={`${t.therapist_id}-${t.therapy_type}`} className="flex items-center gap-3">
+                        <UserAvatar name={t.profiles?.full_name} className="size-10" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-semibold">
+                            {t.profiles?.full_name}
+                            {t.therapist_id === profile?.id && <span className="ml-1.5 text-xs font-semibold text-primary">(you)</span>}
+                          </p>
+                          <p className="text-xs text-muted-foreground">since {formatDate(t.start_date)}</p>
+                        </div>
+                        <TherapyChip type={t.therapy_type} short />
                       </li>
                     ))}
                   </ul>
@@ -119,35 +156,50 @@ export function StudentDetailPage() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle>Parents</CardTitle></CardHeader>
+              <CardHeader><CardTitle>Family</CardTitle></CardHeader>
               <CardContent>
                 {s.student_parents.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No parent recorded.</p>
                 ) : (
-                  <ul className="space-y-3 text-sm">
-                    {s.student_parents.map((p, i) => (
-                      <li key={i}>
-                        <p className="font-medium">
-                          {p.parents?.full_name} <span className="font-normal text-muted-foreground">({p.relationship})</span>
-                          {p.is_primary_contact && <Badge variant="outline" className="ml-2">primary</Badge>}
-                        </p>
-                        {(p.parents?.whatsapp_number || p.parents?.phone) && (
-                          <a href={`tel:${p.parents.whatsapp_number ?? p.parents.phone}`} className="inline-flex items-center gap-1 text-muted-foreground hover:underline">
-                            <Phone className="size-3" /> {p.parents.whatsapp_number ?? p.parents.phone}
-                          </a>
-                        )}
-                      </li>
-                    ))}
+                  <ul className="space-y-3">
+                    {s.student_parents.map((p, i) => {
+                      const phone = p.parents?.whatsapp_number ?? p.parents?.phone;
+                      return (
+                        <li key={i} className="flex items-center gap-3">
+                          <UserAvatar name={p.parents?.full_name} className="size-10" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-semibold">
+                              {p.parents?.full_name}
+                              {p.is_primary_contact && <span className="ml-1.5 rounded-full bg-accent px-1.5 py-px text-[10px] font-bold text-primary uppercase">Primary</span>}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground capitalize">
+                              {p.relationship}
+                              {phone && <span className="normal-case"> · {phone}</span>}
+                            </p>
+                          </div>
+                          {phone && (
+                            <span className="flex gap-1">
+                              <Button asChild variant="outline" size="icon-sm" aria-label={`Call ${p.parents?.full_name}`}>
+                                <a href={`tel:${phone}`}><Phone /></a>
+                              </Button>
+                              <Button asChild variant="outline" size="icon-sm" aria-label={`WhatsApp ${p.parents?.full_name}`}>
+                                <a href={`https://wa.me/${phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer"><MessageCircle className="text-success" /></a>
+                              </Button>
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </CardContent>
             </Card>
             <Card className="lg:col-span-2">
-              <CardHeader><CardTitle>Medical</CardTitle></CardHeader>
-              <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
+              <CardHeader><CardTitle>Medical & background</CardTitle></CardHeader>
+              <CardContent className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
                 <Info label="Medical history" value={s.medical_history} />
-                <Info label="Allergies" value={s.allergies} />
-                <Info label="Medications" value={s.medications} />
+                <Info label="Allergies" value={s.allergies} alert />
+                <Info label="Medications" value={s.medications} alert />
                 <Info label="School" value={s.school_name} />
                 <Info label="Notes" value={s.notes} />
               </CardContent>
@@ -175,11 +227,11 @@ export function StudentDetailPage() {
   );
 }
 
-function Info({ label, value }: { label: string; value: string | null }) {
+function Info({ label, value, alert }: { label: string; value: string | null; alert?: boolean }) {
   return (
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="whitespace-pre-line">{value || '—'}</p>
+    <div className={cn('rounded-xl p-3', alert && value ? 'bg-danger-soft' : 'bg-muted/50')}>
+      <p className={cn('text-[11px] font-bold tracking-wider uppercase', alert && value ? 'text-destructive' : 'text-muted-foreground')}>{label}</p>
+      <p className="mt-1 whitespace-pre-line">{value || <span className="text-muted-foreground">—</span>}</p>
     </div>
   );
 }

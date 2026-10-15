@@ -1,33 +1,37 @@
-import { CalendarDays, CalendarX2, ChevronLeft, ChevronRight, Plus, Repeat } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { ListSkeleton } from '@/components/common/Skeletons';
-import { EmptyState } from '@/components/common/EmptyState';
-import { useOpenFromQuery } from '@/hooks/useOpenFromQuery';
-import { EmptyTableRow, TableSkeleton } from '@/components/common/Skeletons';
-import { StatusBadge } from '@/components/common/StatusBadge';
-import { useConfirm } from '@/components/common/ConfirmDialog';
-import { useCallback, useState } from 'react';
+import { Ban, CalendarDays, CalendarX2, CheckCircle2, Plus, Repeat, UserX } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { Link } from 'react-router';
 import { toast } from 'sonner';
+import { useConfirm } from '@/components/common/ConfirmDialog';
+import { EmptyState } from '@/components/common/EmptyState';
 import { PageHeader } from '@/components/common/PageHeader';
+import { ListSkeleton } from '@/components/common/Skeletons';
+import { StatusBadge } from '@/components/common/StatusBadge';
+import { THERAPY_STYLE, TherapyChip } from '@/components/common/TherapyChip';
+import { UserAvatar } from '@/components/common/UserAvatar';
+import { WeekStrip } from '@/components/common/WeekStrip';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/hooks/useAuth';
 import { useBranch } from '@/hooks/useBranch';
+import { useOpenFromQuery } from '@/hooks/useOpenFromQuery';
 import { usePermission } from '@/hooks/usePermission';
-import { addDays, timeIn, todayIn } from '@/lib/time';
-import { THERAPY_LABELS } from '@/types/app';
+import { timeIn, todayIn } from '@/lib/time';
+import { cn } from '@/lib/utils';
 import { useAppointments, useSetAppointmentStatus, type AppointmentRow, type AppointmentStatus } from '../api';
 import { NewAppointmentDialog } from '../components/NewAppointmentDialog';
 
 const DEFAULT_TZ = 'Asia/Kolkata';
+const ALL = '__all__';
+
 export function AppointmentsPage() {
   const { profile } = useAuth();
   const { branchId, branch, isAll } = useBranch();
   const canManage = usePermission('appointments.manage');
   const timeZone = branch?.timezone ?? DEFAULT_TZ;
-  const [date, setDate] = useState(() => todayIn(timeZone));
+  const today = todayIn(timeZone);
+  const [date, setDate] = useState(today);
+  const [therapist, setTherapist] = useState(ALL);
   const [booking, setBooking] = useState(false);
   useOpenFromQuery(useCallback(() => setBooking(true), []), canManage && !!branch);
   const { data, isLoading, error } = useAppointments({ branchId: isAll ? null : branchId, date, timeZone });
@@ -36,6 +40,12 @@ export function AppointmentsPage() {
 
   const isTherapist = profile?.role === 'therapist';
   const open = (a: AppointmentRow) => a.status === 'scheduled' || a.status === 'confirmed';
+
+  const therapists = useMemo(() => [...new Set((data ?? []).map((a) => a.therapist?.full_name).filter(Boolean) as string[])].sort(), [data]);
+  const rows = (data ?? []).filter((a) => therapist === ALL || a.therapist?.full_name === therapist);
+  const active = rows.filter((a) => a.status !== 'cancelled');
+  const completed = rows.filter((a) => a.status === 'completed').length;
+  const missed = rows.filter((a) => a.status === 'no_show').length;
 
   const update = async (a: AppointmentRow, status: AppointmentStatus) => {
     let reason: string | undefined;
@@ -59,155 +69,183 @@ export function AppointmentsPage() {
     }
   };
 
-  const dayLabel = new Intl.DateTimeFormat('en-IN', { dateStyle: 'full', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`));
+  const now = Date.now();
 
   return (
     <>
       <PageHeader
+        eyebrow="Clinic"
         title={isTherapist ? 'My schedule' : 'Appointments'}
         icon={CalendarDays}
         description={
           canManage
             ? 'Book therapists and patients for your branch'
             : isTherapist
-              ? 'Your appointments. Mark them completed or no-show after the session.'
+              ? 'Your sessions. Mark them completed or no-show afterwards.'
               : 'Schedules across branches (booked by branch admins)'
         }
         actions={
           canManage &&
           branch && (
-            <Button onClick={() => setBooking(true)}>
+            <Button size="lg" onClick={() => setBooking(true)}>
               <Plus /> New appointment
             </Button>
           )
         }
       />
-      <Card>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => setDate(addDays(date, -1))} aria-label="Previous day">
-              <ChevronLeft />
-            </Button>
-            <Button variant="outline" onClick={() => setDate(todayIn(timeZone))}>
-              Today
-            </Button>
-            <Button variant="outline" size="icon" onClick={() => setDate(addDays(date, 1))} aria-label="Next day">
-              <ChevronRight />
-            </Button>
-            <Input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} className="w-auto" aria-label="Date" />
-            <span className="text-sm font-medium">{dayLabel}</span>
-          </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1fr_18rem]">
+        <div className="min-w-0 space-y-5">
+          <Card>
+            <CardContent>
+              <WeekStrip date={date} today={today} onChange={setDate} />
+            </CardContent>
+          </Card>
+
+          {!isTherapist && therapists.length > 1 && (
+            <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 scrollbar-none lg:mx-0 lg:px-0" role="tablist" aria-label="Filter by therapist">
+              {[ALL, ...therapists].map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  role="tab"
+                  aria-selected={therapist === t}
+                  onClick={() => setTherapist(t)}
+                  className={cn(
+                    'inline-flex shrink-0 items-center gap-2 rounded-full border py-1 pr-3.5 text-sm font-semibold transition-colors',
+                    t === ALL ? 'pl-3.5' : 'pl-1',
+                    therapist === t ? 'border-brand-ink bg-brand-ink text-white dark:border-primary dark:bg-primary dark:text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {t !== ALL && <UserAvatar name={t} className="size-6 text-[9px]" />}
+                  {t === ALL ? 'All therapists' : t.split(' ')[0]}
+                </button>
+              ))}
+            </div>
+          )}
 
           {error && <p className="text-sm text-destructive">{error.message}</p>}
-          {/* Phones: cards */}
-          <div className="space-y-2 md:hidden">
-            {isLoading && <ListSkeleton rows={3} />}
-            {data?.length === 0 && (
+
+          {isLoading ? (
+            <Card>
+              <CardContent>
+                <ListSkeleton rows={4} />
+              </CardContent>
+            </Card>
+          ) : rows.length === 0 ? (
+            <Card>
               <EmptyState
                 icon={CalendarX2}
-                title="No appointments on this day"
+                title="Nothing booked on this day"
+                description={canManage ? 'Book a session for a patient and therapist.' : undefined}
                 action={canManage && branch ? <Button size="sm" onClick={() => setBooking(true)}><Plus /> New appointment</Button> : undefined}
               />
-            )}
-            {data?.map((a) => (
-              <article key={a.id} className={cn('rounded-xl border bg-card p-3.5', a.status === 'cancelled' && 'opacity-60')}>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-semibold tabular-nums">
-                    {timeIn(a.start_at, timeZone)} – {timeIn(a.end_at, timeZone)}
-                    {a.recurrence_group_id && <Repeat className="ml-1 inline size-3 text-muted-foreground" aria-label="Recurring" />}
-                  </span>
-                  <StatusBadge status={a.status} />
-                </div>
-                <p className="mt-1.5 font-medium">{a.students?.first_name} {a.students?.last_name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {THERAPY_LABELS[a.therapy_type]}
-                  {!isTherapist && a.therapist && ` · ${a.therapist.full_name}`}
-                  {isAll && a.branches && ` · ${a.branches.name}`}
-                </p>
-                {open(a) && (canManage || isTherapist) && (
-                  <div className="mt-3 flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1" onClick={() => update(a, 'completed')} disabled={setStatus.isPending}>
-                      Completed
-                    </Button>
-                    <Button variant="outline" size="sm" className="flex-1" onClick={() => update(a, 'no_show')} disabled={setStatus.isPending}>
-                      No-show
-                    </Button>
-                    {canManage && (
-                      <Button variant="ghost" size="sm" className="text-destructive" onClick={() => update(a, 'cancelled')} disabled={setStatus.isPending}>
-                        Cancel
-                      </Button>
+            </Card>
+          ) : (
+            <ul className="space-y-2.5">
+              {rows.map((a) => {
+                const name = `${a.students?.first_name ?? ''} ${a.students?.last_name ?? ''}`.trim();
+                const live = open(a) && Date.parse(a.start_at) <= now && Date.parse(a.end_at) > now;
+                return (
+                  <li
+                    key={a.id}
+                    className={cn(
+                      'flex overflow-hidden rounded-2xl border bg-card shadow-soft transition-shadow hover:shadow-lift',
+                      live ? 'border-primary/50 ring-4 ring-primary/10' : 'border-border/70',
+                      a.status === 'cancelled' && 'opacity-55',
                     )}
-                  </div>
-                )}
-              </article>
-            ))}
-          </div>
+                  >
+                    <span className={cn('w-1.5 shrink-0', THERAPY_STYLE[a.therapy_type]?.bar)} aria-hidden />
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-5 gap-y-3 p-3.5 sm:p-4">
+                      <div className="w-24 shrink-0 whitespace-nowrap">
+                        <p className={cn('font-display text-lg leading-tight font-extrabold tabular-nums', live && 'text-primary')}>{timeIn(a.start_at, timeZone)}</p>
+                        <p className="text-xs text-muted-foreground tabular-nums">
+                          to {timeIn(a.end_at, timeZone)}
+                          {a.recurrence_group_id && <Repeat className="ml-1 inline size-3" aria-label="Recurring" />}
+                        </p>
+                      </div>
+                      <Link to={`/students/${a.student_id}`} className="group flex min-w-44 flex-1 items-center gap-3">
+                        <UserAvatar name={name} className="size-10" />
+                        <span className="min-w-0">
+                          <span className="flex items-center gap-2">
+                            <span className="truncate font-bold group-hover:text-primary">{name || 'Patient'}</span>
+                            {live && <span className="rounded-full bg-primary px-1.5 py-px text-[10px] font-bold text-primary-foreground uppercase">Now</span>}
+                          </span>
+                          <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                            <TherapyChip type={a.therapy_type} short />
+                            {!isTherapist && a.therapist && <span>with {a.therapist.full_name}</span>}
+                            {isAll && a.branches && <span>· {a.branches.name}</span>}
+                          </span>
+                        </span>
+                      </Link>
+                      <div className="flex w-full items-center gap-2 sm:w-auto">
+                        {!open(a) && <StatusBadge status={a.status} />}
+                        {open(a) && (canManage || isTherapist) && (
+                          <>
+                            <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => update(a, 'completed')} disabled={setStatus.isPending}>
+                              <CheckCircle2 className="text-success" /> Done
+                            </Button>
+                            <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => update(a, 'no_show')} disabled={setStatus.isPending}>
+                              <UserX className="text-warning" /> No-show
+                            </Button>
+                          </>
+                        )}
+                        {open(a) && canManage && (
+                          <Button variant="ghost" size="icon-sm" className="text-destructive hover:bg-danger-soft hover:text-destructive" onClick={() => update(a, 'cancelled')} disabled={setStatus.isPending} aria-label="Cancel appointment">
+                            <Ban />
+                          </Button>
+                        )}
+                        {open(a) && !canManage && !isTherapist && <StatusBadge status={a.status} />}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
 
-          <div className="hidden md:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Patient</TableHead>
-                  {!isTherapist && <TableHead>Therapist</TableHead>}
-                  <TableHead>Therapy</TableHead>
-                  {isAll && <TableHead>Branch</TableHead>}
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading && <TableSkeleton cols={7} />}
-                {data?.length === 0 && (
-                  <EmptyTableRow
-                    cols={7}
-                    icon={CalendarX2}
-                    title="No appointments on this day"
-                    description={canManage ? 'Book a session for a patient and therapist.' : undefined}
-                    action={canManage && branch ? <Button size="sm" onClick={() => setBooking(true)}><Plus /> New appointment</Button> : undefined}
-                  />
-                )}
-                {data?.map((a) => (
-                  <TableRow key={a.id} className={a.status === 'cancelled' ? 'opacity-60' : undefined}>
-                    <TableCell className="whitespace-nowrap">
-                      {timeIn(a.start_at, timeZone)} – {timeIn(a.end_at, timeZone)}
-                      {a.recurrence_group_id && <Repeat className="ml-1 inline size-3 text-muted-foreground" aria-label="Recurring" />}
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium">{a.students?.first_name} {a.students?.last_name}</div>
-                      <div className="font-mono text-xs text-muted-foreground">{a.students?.student_code}</div>
-                    </TableCell>
-                    {!isTherapist && <TableCell>{a.therapist?.full_name}</TableCell>}
-                    <TableCell>{THERAPY_LABELS[a.therapy_type]}</TableCell>
-                    {isAll && <TableCell>{a.branches?.name}</TableCell>}
-                    <TableCell>
-                      <StatusBadge status={a.status} />
-                    </TableCell>
-                    <TableCell className="space-x-1 text-right whitespace-nowrap">
-                      {open(a) && (canManage || isTherapist) && (
-                        <>
-                          <Button variant="ghost" size="sm" onClick={() => update(a, 'completed')} disabled={setStatus.isPending}>
-                            Completed
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => update(a, 'no_show')} disabled={setStatus.isPending}>
-                            No-show
-                          </Button>
-                        </>
-                      )}
-                      {open(a) && canManage && (
-                        <Button variant="ghost" size="sm" className="text-destructive" onClick={() => update(a, 'cancelled')} disabled={setStatus.isPending}>
-                          Cancel
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+        <aside className="space-y-4">
+          <Card className="gap-4">
+            <CardContent className="space-y-4">
+              <p className="text-[11px] font-bold tracking-[0.12em] text-muted-foreground uppercase">Day summary</p>
+              <div className="grid grid-cols-3 gap-2 text-center xl:grid-cols-1 xl:text-left">
+                <Summary label="Booked" value={active.length} />
+                <Summary label="Completed" value={completed} tone="text-success" />
+                <Summary label="No-show" value={missed} tone={missed ? 'text-destructive' : undefined} />
+              </div>
+              {active.length > 0 && (
+                <div>
+                  <div className="h-2 overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-primary transition-[width] duration-700" style={{ width: `${(completed / active.length) * 100}%` }} />
+                  </div>
+                  <p className="mt-1.5 text-xs text-muted-foreground">{Math.round((completed / active.length) * 100)}% of the day completed</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          <Card className="hidden gap-3 xl:flex">
+            <CardContent className="space-y-2">
+              <p className="text-[11px] font-bold tracking-[0.12em] text-muted-foreground uppercase">Therapy colours</p>
+              {(Object.keys(THERAPY_STYLE) as (keyof typeof THERAPY_STYLE)[]).map((t) => (
+                <div key={t}>
+                  <TherapyChip type={t} />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </aside>
+      </div>
       {branch && <NewAppointmentDialog branch={branch} date={date} open={booking} onOpenChange={setBooking} />}
     </>
+  );
+}
+
+function Summary({ label, value, tone }: { label: string; value: number; tone?: string }) {
+  return (
+    <div className="rounded-xl bg-muted/60 p-2.5 xl:flex xl:items-center xl:justify-between">
+      <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+      <p className={cn('font-display text-2xl font-extrabold tabular-nums', tone)}>{value}</p>
+    </div>
   );
 }

@@ -9,6 +9,7 @@ export type AppointmentStatus = 'scheduled' | 'confirmed' | 'completed' | 'cance
 
 export interface AppointmentRow {
   id: string;
+  student_id: string;
   start_at: string;
   end_at: string;
   status: AppointmentStatus;
@@ -29,7 +30,7 @@ export function useAppointments(opts: { branchId: string | null; date: string; t
       let q = supabase
         .from('appointments')
         .select(
-          'id, start_at, end_at, status, therapy_type, notes, recurrence_group_id, students(first_name, last_name, student_code), therapist:profiles!appointments_therapist_id_fkey(full_name), branches(name)',
+          'id, student_id, start_at, end_at, status, therapy_type, notes, recurrence_group_id, students(first_name, last_name, student_code), therapist:profiles!appointments_therapist_id_fkey(full_name), branches(name)',
         )
         .gte('start_at', from)
         .lt('start_at', to)

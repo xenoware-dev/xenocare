@@ -15,7 +15,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Link } from 'react-router';
-import { PageHeader } from '@/components/common/PageHeader';
+import { DayHero, firstName, greeting } from '@/components/common/DayHero';
+import { ProgressRing } from '@/components/common/ProgressRing';
 import { StatSkeleton } from '@/components/common/Skeletons';
 import { StatCard } from '@/components/common/StatCard';
 import { TonePill, type Tone } from '@/components/common/StatusBadge';
@@ -32,10 +33,7 @@ import { useAttention, useTrends } from '../api';
 import { AttendanceTrend, WorkloadBars } from './Charts';
 import { ScheduleBoard } from './ScheduleBoard';
 
-export function greeting() {
-  const h = new Date().getHours();
-  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-}
+export { greeting };
 
 /** Branch admin's day (also the owner's view when one branch is selected). */
 export function BranchDashboard() {
@@ -60,23 +58,46 @@ export function BranchDashboard() {
 
   return (
     <>
-      <PageHeader
-        title={`${greeting()}, ${profile?.full_name?.split(' ')[0] || 'there'}`}
-        description={`${branch?.name ?? 'Your branch'} · ${new Intl.DateTimeFormat('en-IN', { dateStyle: 'full', timeZone: tz }).format(new Date())}`}
+      <DayHero
+        eyebrow={`${branch?.name ?? 'Your branch'} · ${new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'long', timeZone: tz }).format(new Date())}`}
+        title={
+          <>
+            {greeting()}, <span className="text-primary">{firstName(profile?.full_name)}</span>
+          </>
+        }
+        description={
+          agenda.isLoading
+            ? 'Loading today…'
+            : sessions.length
+              ? `${sessions.length} sessions on the board today · ${checkedIn} checked in so far${missed ? ` · ${missed} missed` : ''}.`
+              : 'Nothing is booked for today yet.'
+        }
         actions={
           <>
-            {canAddPatient && (
-              <Button variant="outline" asChild>
-                <Link to="/students?new=1"><UserRoundPlus /> New patient</Link>
+            {canBook && (
+              <Button asChild size="lg">
+                <Link to="/appointments?new=1"><CalendarPlus /> Book appointment</Link>
               </Button>
             )}
-            {canBook && (
-              <Button asChild>
-                <Link to="/appointments?new=1"><CalendarPlus /> New appointment</Link>
+            <Button asChild size="lg" variant="outline">
+              <Link to="/attendance"><UserCheck /> Check-in desk</Link>
+            </Button>
+            {canAddPatient && (
+              <Button asChild size="lg" variant="ghost">
+                <Link to="/students?new=1"><UserRoundPlus /> New patient</Link>
               </Button>
             )}
           </>
         }
+        aside={
+          sessions.length > 0 && (
+            <ProgressRing value={done / sessions.length} size={120} stroke={11} label={`${done} of ${sessions.length} sessions completed`}>
+              <span className="font-display text-3xl font-extrabold tabular-nums">{Math.round((done / sessions.length) * 100)}%</span>
+              <span className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">day done</span>
+            </ProgressRing>
+          )
+        }
+        className="mb-6"
       />
 
       <div className="space-y-6">
@@ -84,8 +105,8 @@ export function BranchDashboard() {
           <StatSkeleton />
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-            <StatCard label="Sessions today" value={String(sessions.length)} icon={CalendarCheck} hint={`${done} done · ${sessions.length - done - missed} to go`} to="/appointments" />
-            <StatCard label="Checked in" value={`${checkedIn}/${sessions.length}`} icon={UserCheck} tone="success" to="/attendance" />
+            <StatCard label="Sessions today" value={String(sessions.length)} icon={CalendarCheck} hint={`${done} done · ${Math.max(0, sessions.length - done - missed)} to go`} to="/appointments" />
+            <StatCard label="Checked in" value={`${checkedIn}/${sessions.length}`} icon={UserCheck} tone="success" to="/attendance" progress={sessions.length ? checkedIn / sessions.length : 0} />
             <StatCard label="Absent / no-show" value={String(missed)} icon={UserX} tone={missed ? 'danger' : 'neutral'} hint={missed ? 'Follow up with parents' : 'Everyone came'} to="/attendance" />
             <StatCard
               label="On leave today"
@@ -159,7 +180,7 @@ export function BranchDashboard() {
               {trends.data ? (
                 <>
                   <div>
-                    <p className="text-4xl font-bold tabular-nums">{trends.data.activePatients}</p>
+                    <p className="font-display text-5xl font-extrabold tabular-nums">{trends.data.activePatients}</p>
                     <p className="text-sm text-muted-foreground">active patients</p>
                   </div>
                   <p className="text-sm">
@@ -206,12 +227,12 @@ function AttentionItem({
   };
   return (
     <li>
-      <Link to={to} className="-mx-2 flex items-start gap-3 rounded-lg p-2 transition-colors hover:bg-muted">
-        <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${toneClass[tone]}`}>
+      <Link to={to} className="group -mx-2 flex items-start gap-3 rounded-xl p-2.5 transition-colors hover:bg-muted">
+        <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${toneClass[tone]}`}>
           <Icon className="size-4" aria-hidden />
         </span>
         <span className="min-w-0">
-          <span className="block text-sm font-medium">{title}</span>
+          <span className="block text-sm font-semibold">{title}</span>
           {detail && <span className="block truncate text-xs text-muted-foreground">{detail}</span>}
         </span>
       </Link>

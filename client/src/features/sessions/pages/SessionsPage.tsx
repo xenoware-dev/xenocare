@@ -30,6 +30,7 @@ export function SessionsPage() {
   return (
     <>
       <PageHeader
+        eyebrow="Therapy"
         title="Session notes"
         icon={NotebookPen}
         description={isTherapist ? 'Write a SOAP note after every session, then sign it.' : 'Clinical notes written by therapists'}
