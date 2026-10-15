@@ -6,7 +6,7 @@ import { ageOf } from '../age';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { EmptyTableRow, TableSkeleton } from '@/components/common/Skeletons';
 import { StatusBadge } from '@/components/common/StatusBadge';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +25,7 @@ import { useStudent } from '../api';
 export function StudentDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const { profile } = useAuth();
   const canPlan = usePermission('plans.write');
   const canAssess = usePermission('assessments.write');
@@ -120,7 +121,7 @@ export function StudentDetailPage() {
         </div>
       )}
 
-      <Tabs defaultValue="overview">
+      <Tabs defaultValue={params.get('tab') ?? 'overview'}>
         <TabsList className="w-full justify-start overflow-x-auto scrollbar-none sm:w-auto">
           <TabsTrigger value="overview"><UserRound /> Overview</TabsTrigger>
           <TabsTrigger value="plan"><Target /> Plan & goals</TabsTrigger>

@@ -1,4 +1,6 @@
-import { ArrowLeft, Check, Lock, Save, ShieldAlert, X } from 'lucide-react';
+import { ArrowLeft, Check, Lock, Pencil, Plus, Save, ShieldAlert, Target, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { PlansPanel } from '@/features/plans/components/PlansPanel';
 import { TherapyChip } from '@/components/common/TherapyChip';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { cn } from '@/lib/utils';
@@ -34,6 +36,8 @@ export function SessionNotePage() {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const canWrite = usePermission('sessions.write');
+  const canPlan = usePermission('plans.write');
+  const [planning, setPlanning] = useState(false);
   const { data: ctx, isLoading, error } = useNoteContext(appointmentId);
   const { data: soapTemplates } = useTemplates('soap');
   const { data: savedTemplate } = useTemplate(ctx?.session?.template_id);
@@ -216,37 +220,43 @@ export function SessionNotePage() {
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle>{template?.name ?? 'Session note'}</CardTitle>
-          <CardDescription>The home program is shared with parents.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {template ? (
-            <TemplateForm
-              schema={template.schema}
-              values={notes}
-              onChange={(v) => {
-                setDirty(true);
-                setNotes(v);
-              }}
-              readOnly={readOnly}
-              idPrefix="soap"
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">Loading template…</p>
+        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1.5">
+            <CardTitle className="flex items-center gap-2">
+              <Target className="size-[18px] text-primary" aria-hidden /> SMART goals
+              {goals.length > 0 && <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-primary tabular-nums">{goals.length}</span>}
+            </CardTitle>
+            <CardDescription>
+              {goals.length
+                ? 'Count trials for the goals you work on today. This feeds the progress charts and reports.'
+                : `No active ${THERAPY_LABELS[appointment.therapy_type].toLowerCase()} goals for ${appointment.student?.first_name ?? 'this patient'} yet.`}
+            </CardDescription>
+          </div>
+          {canPlan && goals.length > 0 && (
+            <Button variant="outline" size="sm" onClick={() => setPlanning(true)}>
+              <Pencil /> Edit goals
+            </Button>
           )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Goals worked on</CardTitle>
-          <CardDescription>
-            {goals.length
-              ? 'Record trials and successes for the goals you targeted today. This feeds the progress charts.'
-              : 'No active goals for this therapy yet. Add a treatment plan on the patient page.'}
-          </CardDescription>
         </CardHeader>
+        {goals.length === 0 && (
+          <CardContent>
+            <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-dashed border-primary/30 bg-accent/40 p-4">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-card text-primary shadow-xs">
+                <Target className="size-5" aria-hidden />
+              </span>
+              <p className="min-w-48 flex-1 text-sm text-muted-foreground">
+                {canPlan
+                  ? 'Create a treatment plan with SMART goals to record trials and accuracy in every session.'
+                  : 'A therapist on the care team can add a treatment plan with SMART goals.'}
+              </p>
+              {canPlan && (
+                <Button onClick={() => setPlanning(true)}>
+                  <Plus /> Create SMART plan
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        )}
         {goals.length > 0 && (
           <CardContent className="space-y-4">
             {goals.map((g) => {
@@ -333,6 +343,29 @@ export function SessionNotePage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>{template?.name ?? 'Session note'}</CardTitle>
+          <CardDescription>The home program is shared with parents.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {template ? (
+            <TemplateForm
+              schema={template.schema}
+              values={notes}
+              onChange={(v) => {
+                setDirty(true);
+                setNotes(v);
+              }}
+              readOnly={readOnly}
+              idPrefix="soap"
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">Loading template…</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Activities done</CardTitle>
         </CardHeader>
         <CardContent>
@@ -340,6 +373,23 @@ export function SessionNotePage() {
             placeholder="Games, exercises and materials used in this session" aria-label="Activities done" />
         </CardContent>
       </Card>
+
+      <Dialog open={planning} onOpenChange={setPlanning}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl">
+              Plan & goals · {appointment.student?.first_name} {appointment.student?.last_name}
+            </DialogTitle>
+            <DialogDescription>Goals you add here appear in this note straight away. Your note stays as it is.</DialogDescription>
+          </DialogHeader>
+          <PlansPanel
+            studentId={appointment.student_id}
+            branchId={student?.home_branch_id ?? appointment.branch_id}
+            defaultTherapist={{ id: appointment.therapist_id, therapy_type: appointment.therapy_type }}
+            canEdit={canPlan}
+          />
+        </DialogContent>
+      </Dialog>
 
       {!readOnly && (
         <div className="sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] z-10 flex flex-wrap items-center gap-3 rounded-2xl border bg-card/95 p-3 shadow-lift backdrop-blur lg:bottom-4">
