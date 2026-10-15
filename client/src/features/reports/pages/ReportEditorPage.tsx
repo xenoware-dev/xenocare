@@ -195,7 +195,7 @@ export function ReportEditorPage() {
       {/* Print header (A4) */}
       {r && (
         <div className="hidden border-b pb-3 print:block">
-          <p className="text-lg font-semibold">{r.branches?.name ?? 'XenoCare'} · Progress report</p>
+          <p className="text-lg font-semibold">{r.branches?.name ?? 'Absolute'} · Progress report</p>
           <p className="text-sm">
             {name} ({r.students?.student_code}) · {THERAPY_LABELS[r.therapy_type]} · {formatDate(r.period_start)} – {formatDate(r.period_end)}
           </p>

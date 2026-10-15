@@ -6,7 +6,7 @@
 -- =============================================================================
 
 insert into public.organization_settings (name, currency, default_timezone)
-values ('XenoCare Therapy Centre', 'INR', 'Asia/Kolkata')
+values ('Absolute Special School & Therapy Care', 'INR', 'Asia/Kolkata')
 on conflict (id) do nothing;
 
 insert into public.branches (code, name, city, timezone) values

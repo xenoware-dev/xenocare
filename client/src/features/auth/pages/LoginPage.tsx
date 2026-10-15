@@ -91,7 +91,7 @@ export function LoginPage() {
           <span className="flex size-11 items-center justify-center rounded-2xl bg-white/15">
             <HeartPulse className="size-6" aria-hidden />
           </span>
-          <span className="text-2xl font-bold">XenoCare</span>
+          <span className="text-2xl font-bold">Absolute</span>
         </div>
         <div className="relative mt-auto max-w-md space-y-6">
           <h2 className="text-4xl leading-tight font-bold">Every session, every goal, every child, in one place.</h2>

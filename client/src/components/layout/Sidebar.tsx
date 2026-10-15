@@ -20,8 +20,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <HeartPulse className="size-5" aria-hidden />
         </span>
         <span>
-          <span className="block text-base leading-tight font-bold">XenoCare</span>
-          <span className="block text-[11px] text-muted-foreground">Therapy centre</span>
+          <span className="block text-base leading-tight font-bold">Absolute</span>
+          <span className="block text-[11px] text-muted-foreground">Special school &amp; therapy care</span>
         </span>
       </Link>
 
